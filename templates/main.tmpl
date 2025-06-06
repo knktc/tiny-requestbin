@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Request Bin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans h-screen flex flex-col">
+    <header class="p-4 border-b bg-white shadow-sm flex justify-between items-center">
+        <div class="w-1/3"></div>
+        <div class="w-1/3 text-center">
+            <h1 class="text-2xl font-bold text-gray-900">Go Request Bin</h1>
+            <p class="text-sm text-gray-600 mt-1">
+                Send requests to your-host/your-path
+            </p>
+        </div>
+        <div class="w-1/3 flex justify-end items-center pr-4">
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" id="autoRefreshCheckbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <label for="autoRefreshCheckbox" class="text-sm text-gray-600">自动刷新</label>
+                <input type="number" id="refreshIntervalInput" class="w-16 text-sm border-gray-300 rounded-md shadow-sm" min="1" value="5">
+                <label for="refreshIntervalInput" class="text-sm text-gray-600">秒</label>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Left Column: Request List -->
+        <aside class="w-1/3 bg-white border-r flex flex-col">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">已捕获的请求</h2>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                {{if .AllRequests}}
+                <ul class="divide-y">
+                    {{range .AllRequests}}
+                    <a href="/?view_id={{.ID}}" class="block p-4 hover:bg-gray-50 {{if isCurrent .ID $.SelectedRequest}}bg-indigo-50 border-l-4 border-indigo-500{{end}}">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="font-bold truncate {{if isCurrent .ID $.SelectedRequest}}text-indigo-700{{else}}text-gray-800{{end}}">
+                                <span class="px-2 mr-2 text-xs leading-5 font-semibold rounded-full 
+                                    {{if eq .Method "GET"}} bg-green-100 text-green-800
+                                    {{else if eq .Method "POST"}} bg-blue-100 text-blue-800
+                                    {{else if eq .Method "PUT"}} bg-yellow-100 text-yellow-800
+                                    {{else if eq .Method "DELETE"}} bg-red-100 text-red-800
+                                    {{else}} bg-gray-100 text-gray-800 {{end}}">
+                                    {{.Method}}
+                                </span>
+                                <span class="font-mono">{{.Path}}</span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-500">{{.Timestamp | formatTime}}</div>
+                    </a>
+                    {{end}}
+                </ul>
+                {{else}}
+                <div class="p-6 text-center text-gray-500">
+                    <p>尚未捕获任何请求。</p>
+                </div>
+                {{end}}
+            </div>
+        </aside>
+
+        <!-- Right Column: Request Details -->
+        <main class="w-2/3 overflow-y-auto p-4 md:p-8">
+            {{if .SelectedRequest}}
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div class="p-6 border-b">
+                    <h2 class="text-xl font-semibold">请求 #{{.SelectedRequest.ID}} 详情</h2>
+                </div>
+                <div class="p-6">
+                     <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">时间</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{.SelectedRequest.Timestamp | formatTime}}</dd>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">方法</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{.SelectedRequest.Method}}</dd>
+                        </div>
+                         <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">路径</dt>
+                            <dd class="mt-1 text-sm text-gray-900 font-mono">{{.SelectedRequest.Path}}</dd>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">协议</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{.SelectedRequest.Proto}}</dd>
+                        </div>
+                        <div class="sm:col-span-1">
+                            <dt class="text-sm font-medium text-gray-500">源 IP</dt>
+                            <dd class="mt-1 text-sm text-gray-900 font-mono">{{.SelectedRequest.RemoteAddr}}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div id="headers-toggle" class="p-6 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                    <h2 class="text-xl font-semibold">标头 (Headers)</h2>
+                    <svg id="headers-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+                <div id="headers-content" class="p-6 overflow-x-auto transition-all duration-300">
+                    <dl>
+                        {{range $key, $values := .SelectedRequest.Headers}}
+                            <div class="py-2 sm:grid sm:grid-cols-4 sm:gap-4">
+                                <dt class="text-sm font-medium text-gray-500 break-all">{{$key}}</dt>
+                                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-3 font-mono break-all">{{range $values}}{{.}}{{end}}</dd>
+                            </div>
+                        {{end}}
+                    </dl>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md">
+                <div id="body-toggle" class="p-6 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                    <h2 class="text-xl font-semibold">正文 (Body)</h2>
+                    <svg id="body-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+                <div id="body-content" class="p-6 transition-all duration-300">
+                    {{if .SelectedRequest.Body}}
+                        <pre class="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto"><code>{{prettyPrintJson .SelectedRequest.Body}}</code></pre>
+                    {{else}}
+                        <p class="text-gray-500">该请求没有正文。</p>
+                    {{end}}
+                </div>
+            </div>
+            {{else}}
+            <div class="flex items-center justify-center h-full">
+                <div class="text-center text-gray-500">
+                    <h2 class="text-2xl font-semibold">欢迎！</h2>
+                    <p class="mt-2">请从左侧列表中选择一个请求以查看其详细信息。</p>
+                </div>
+            </div>
+            {{end}}
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Auto-refresh logic ---
+            const checkbox = document.getElementById('autoRefreshCheckbox');
+            const intervalInput = document.getElementById('refreshIntervalInput');
+            let refreshInterval;
+
+            function startRefresh() {
+                if (refreshInterval) clearInterval(refreshInterval);
+                let interval = parseInt(intervalInput.value, 10);
+                if (isNaN(interval) || interval < 1) {
+                    interval = 5; // 如果输入无效，则重置为默认值
+                    intervalInput.value = '5';
+                }
+                refreshInterval = setInterval(() => window.location.reload(), interval * 1000);
+            }
+
+            function stopRefresh() {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+
+            checkbox.addEventListener('change', () => {
+                localStorage.setItem('autoRefreshInterval', intervalInput.value);
+                if (checkbox.checked) {
+                    localStorage.setItem('autoRefreshEnabled', 'true');
+                    startRefresh();
+                } else {
+                    localStorage.setItem('autoRefreshEnabled', 'false');
+                    stopRefresh();
+                }
+            });
+            
+            intervalInput.addEventListener('change', () => {
+                let interval = parseInt(intervalInput.value, 10);
+                if (isNaN(interval) || interval < 1) {
+                    intervalInput.value = '5'; // 重置为默认值
+                }
+                localStorage.setItem('autoRefreshInterval', intervalInput.value);
+                if (checkbox.checked) {
+                    startRefresh(); // 如果已启用，则使用新间隔重新启动
+                }
+            });
+
+            // 页面加载时恢复设置
+            const savedInterval = localStorage.getItem('autoRefreshInterval') || '5';
+            intervalInput.value = savedInterval;
+            const isEnabled = localStorage.getItem('autoRefreshEnabled') !== 'false';
+            checkbox.checked = isEnabled;
+            if (isEnabled) {
+                startRefresh();
+            }
+
+            // --- Collapsible sections logic ---
+            const sections = ['headers', 'body'];
+
+            sections.forEach(section => {
+                const toggle = document.getElementById(section + '-toggle');
+                const content = document.getElementById(section + '-content');
+                const chevron = document.getElementById(section + '-chevron');
+                const storageKey = section + 'Collapsed';
+
+                const setCollapsedState = (isCollapsed, isInitial) => {
+                    if(isCollapsed) {
+                        content.classList.add('hidden');
+                        chevron.classList.add('rotate-180');
+                    } else {
+                        content.classList.remove('hidden');
+                        chevron.classList.remove('rotate-180');
+                    }
+                    if (!isInitial) {
+                         localStorage.setItem(storageKey, isCollapsed);
+                    }
+                };
+                
+                if (toggle) {
+                     toggle.addEventListener('click', () => {
+                        const isCollapsed = !content.classList.contains('hidden');
+                        setCollapsedState(isCollapsed, false);
+                    });
+                }
+               
+                if (content) {
+                    const initiallyCollapsed = localStorage.getItem(storageKey) === 'true';
+                    setCollapsedState(initiallyCollapsed, true);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
