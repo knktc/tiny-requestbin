@@ -55,7 +55,8 @@ var (
 // It sets up routes and starts the HTTP server.
 func main() {
 	// Define command-line flags to specify port and maximum number of requests.
-	port := flag.String("port", "8080", "Port for the server to listen on")
+	port := flag.Int("port", 8080, "Port for the server to listen on")
+	listen := flag.String("listen", "127.0.0.1", "Address to listen on")
 	max := flag.Int("max", 100, "Maximum number of requests to store")
 	flag.Parse()
 
@@ -65,14 +66,14 @@ func main() {
 	// Register the handler function as the handler for all requests.
 	http.HandleFunc("/", handler)
 
-	// Build a listening address using the specified port.
-	addr := ":" + *port
+	// Build a listening address using the specified address and port.
+	addr := fmt.Sprintf("%s:%d", *listen, *port)
 
 	// Start the server and listen on the specified port.
-	fmt.Printf("Server starting on port %s...\n", *port)
+	fmt.Printf("Server starting on port %d...\n", *port)
 	fmt.Printf("Maximum requests to store: %d\n", maxRequests)
-	fmt.Printf("Send any HTTP request to http://localhost:%s/some/path\n", *port)
-	fmt.Printf("View captured requests at http://localhost:%s/\n", *port)
+	fmt.Printf("Send any HTTP request to http://%s:%d/some/path\n", *listen, *port)
+	fmt.Printf("View captured requests at http://%s:%d/\n", *listen, *port)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
