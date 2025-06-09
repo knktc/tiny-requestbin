@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -279,4 +280,7 @@ func printRequestToCLI(reqInfo RequestInfo) {
 	}
 
 	fmt.Printf("%s\n", strings.Repeat("=", 80))
+
+	// Force flush stdout to ensure immediate output
+	os.Stdout.Sync()
 }

@@ -1,3 +1,3 @@
-module tiny-requestbin
+module github.com/knktc/tiny-requestbin
 
 go 1.23.2
