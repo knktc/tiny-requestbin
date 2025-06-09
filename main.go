@@ -18,7 +18,7 @@ import (
 //go:embed templates/main.tmpl
 var templateFS embed.FS
 
-// RequestInfo 结构用于存储捕获到的 HTTP 请求的详细信息。
+// RequestInfo structure is used to store the detailed information of captured HTTP requests.
 type RequestInfo struct {
 	ID         int
 	Method     string
@@ -30,45 +30,45 @@ type RequestInfo struct {
 	RemoteAddr string
 }
 
-// PageData 结构用于向主模板传递数据。
+// PageData structure is used to pass data to the main template.
 type PageData struct {
 	AllRequests     []RequestInfo
-	SelectedRequest *RequestInfo // 使用指针，以便在未选择任何请求时可以为 nil
+	SelectedRequest *RequestInfo // Using a pointer so that it can be nil when no request is selected
 }
 
 // Global store for our requests
-// 我们使用一个全局变量来存储请求。
+// We use global variables to store requests.
 var (
-	// requestsStore 用于通过 ID 快速访问请求。
+	// requestsStore is used to quickly access requests by ID.
 	requestsStore = make(map[int]RequestInfo)
-	// requestIDs 按时间顺序维护所有请求的 ID，用于实现先进先出（FIFO）的限制策略。
+	// requestIDs maintains the IDs of all requests in chronological order, used to implement a first-in-first-out (FIFO) limit policy.
 	requestIDs []int
-	// 使用读写互斥锁来保护对共享资源的并发访问。
+	// Use a read-write mutex to protect concurrent access to shared resources.
 	mutex = &sync.RWMutex{}
-	// nextID 用于为每个新请求生成一个唯一的 ID。
+	// nextID is used to generate a unique ID for each new request.
 	nextID = 0
-	// maxRequests 存储允许保存的最大请求数量。
+	// maxRequests stores the maximum number of requests allowed to be saved.
 	maxRequests int
 )
 
-// main 函数是程序的入口点。
-// 它设置路由并启动 HTTP 服务器。
+// main function is the entry point of the program.
+// It sets up routes and starts the HTTP server.
 func main() {
-	// 定义命令行标志来指定端口和最大请求数。
+	// Define command-line flags to specify port and maximum number of requests.
 	port := flag.String("port", "8080", "Port for the server to listen on")
 	max := flag.Int("max", 100, "Maximum number of requests to store")
 	flag.Parse()
 
-	// 将命令行参数的值赋给全局变量。
+	// Assign the value of command-line parameters to global variables.
 	maxRequests = *max
 
-	// 将 handler 函数注册为所有请求的处理器。
+	// Register the handler function as the handler for all requests.
 	http.HandleFunc("/", handler)
 
-	// 使用指定的端口构建监听地址。
+	// Build a listening address using the specified port.
 	addr := ":" + *port
 
-	// 启动服务器并监听指定的端口。
+	// Start the server and listen on the specified port.
 	fmt.Printf("Server starting on port %s...\n", *port)
 	fmt.Printf("Maximum requests to store: %d\n", maxRequests)
 	fmt.Printf("Send any HTTP request to http://localhost:%s/some/path\n", *port)
@@ -78,27 +78,27 @@ func main() {
 	}
 }
 
-// handler 是所有传入请求的中心路由器。
-// 它根据 URL 路径决定是捕获请求还是显示主页面板。
+// handler is the central router for all incoming requests.
+// It decides whether to capture the request or display the main panel based on the URL path.
 func handler(w http.ResponseWriter, r *http.Request) {
-	// 忽略对浏览器图标的请求，直接返回204 No Content，这样就不会被记录。
+	// Ignore requests for browser icons, directly return 204 No Content, so they won't be recorded.
 	if r.URL.Path == "/favicon.ico" {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	// 如果是根路径，则显示主页面板。
+	// If it's the root path, display the main panel.
 	if r.URL.Path == "/" {
 		mainPageHandler(w, r)
 		return
 	}
-	// 否则，捕获该请求。
+	// Otherwise, capture the request.
 	captureRequestHandler(w, r)
 }
 
-// captureRequestHandler 捕获传入请求的详细信息并将其存储起来。
+// captureRequestHandler captures the details of the incoming request and stores it.
 func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
-	// 读取请求正文。
+	// Read the request body.
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Could not read request body", http.StatusInternalServerError)
@@ -111,7 +111,7 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 	nextID++
 	mutex.Unlock()
 
-	// 创建一个新的 RequestInfo 实例。
+	// Create a new RequestInfo instance.
 	reqInfo := RequestInfo{
 		ID:         id,
 		Method:     r.Method,
@@ -123,29 +123,29 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 		RemoteAddr: r.RemoteAddr,
 	}
 
-	// 加锁以安全地更新存储。
+	// Lock to safely update the storage.
 	mutex.Lock()
 	requestsStore[id] = reqInfo
-	requestIDs = append(requestIDs, id) // 将新请求的 ID 添加到列表末尾。
+	requestIDs = append(requestIDs, id) // Add the ID of the new request to the end of the list.
 
-	// 如果请求数量超过了最大限制，则删除最旧的一个。
+	// If the number of requests exceeds the maximum limit, delete the oldest one.
 	if len(requestIDs) > maxRequests {
-		oldestID := requestIDs[0]       // 获取最旧的 ID。
-		delete(requestsStore, oldestID) // 从 map 中删除。
-		requestIDs = requestIDs[1:]     // 从 slice 的开头移除。
+		oldestID := requestIDs[0]       // Get the oldest ID.
+		delete(requestsStore, oldestID) // Delete it from the map.
+		requestIDs = requestIDs[1:]     // Remove from the beginning of the slice.
 	}
 	mutex.Unlock()
 
-	// 响应客户端，告知请求已被捕获。
+	// Respond to the client, informing that the request has been captured.
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Request captured successfully. View at http://%s/?view_id=%d", r.Host, id)
 }
 
-// mainPageHandler 准备数据并渲染左右布局的主页。
+// mainPageHandler prepares data and renders the main page with a left-right layout.
 func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 	mutex.RLock()
-	// 基于有序的 ID 列表创建请求列表。
-	// 为了让最新的请求显示在最前面，我们倒序遍历 ID 列表。
+	// Create a list of requests based on the ordered ID list.
+	// To have the newest requests shown at the top, we traverse the ID list in reverse order.
 	requests := make([]RequestInfo, len(requestIDs))
 	for i := 0; i < len(requestIDs); i++ {
 		id := requestIDs[len(requestIDs)-1-i]
@@ -155,13 +155,13 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 
 	var selectedReq *RequestInfo
 
-	// 检查 'view_id' 参数以确定要显示的请求。
+	// Check the 'view_id' parameter to determine which request to display.
 	idStr := r.URL.Query().Get("view_id")
 	if idStr != "" {
 		id, err := strconv.Atoi(idStr)
 		if err == nil {
 			mutex.RLock()
-			// 我们需要直接从 map 中查找，因为 `requests` 列表可能不包含所有历史请求。
+			// We need to look up directly from the map, as the `requests` list may not contain all historical requests.
 			req, ok := requestsStore[id]
 			mutex.RUnlock()
 			if ok {
@@ -170,7 +170,7 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 如果没有选择任何请求且存在请求，则默认显示最新的一个。
+	// If no request is selected and there are requests, default to showing the newest one.
 	if selectedReq == nil && len(requests) > 0 {
 		selectedReq = &requests[0]
 	}
@@ -183,9 +183,9 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "main", pageData)
 }
 
-// renderTemplate 是一个辅助函数，用于解析和执行 HTML 模板。
+// renderTemplate is a helper function for parsing and executing HTML templates.
 func renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
-	// 从嵌入的文件系统中读取模板
+	// Read the template from the embedded file system
 	tmplContent, err := templateFS.ReadFile("templates/main.tmpl")
 	if err != nil {
 		log.Printf("Error reading template file: %v", err)
