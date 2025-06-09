@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,6 +50,8 @@ var (
 	nextID = 0
 	// maxRequests stores the maximum number of requests allowed to be saved.
 	maxRequests int
+	// cliMode indicates whether to print requests to command line
+	cliMode bool
 )
 
 // main function is the entry point of the program.
@@ -58,10 +61,12 @@ func main() {
 	port := flag.Int("port", 8080, "Port for the server to listen on")
 	listen := flag.String("listen", "127.0.0.1", "Address to listen on")
 	max := flag.Int("max", 100, "Maximum number of requests to store")
+	cli := flag.Bool("cli", false, "Print requests to command line")
 	flag.Parse()
 
 	// Assign the value of command-line parameters to global variables.
 	maxRequests = *max
+	cliMode = *cli
 
 	// Register the handler function as the handler for all requests.
 	http.HandleFunc("/", handler)
@@ -140,6 +145,11 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 	// Respond to the client, informing that the request has been captured.
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Request captured successfully. View at http://%s/?view_id=%d", r.Host, id)
+
+	// Print request details to CLI if in CLI mode
+	if cliMode {
+		printRequestToCLI(reqInfo)
+	}
 }
 
 // mainPageHandler prepares data and renders the main page with a left-right layout.
@@ -228,4 +238,45 @@ func renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
 	}
 
 	buf.WriteTo(w)
+}
+
+// printRequestToCLI prints request information to command line in a beautiful format
+func printRequestToCLI(reqInfo RequestInfo) {
+	fmt.Printf("\n%s\n", strings.Repeat("=", 80))
+	fmt.Printf("📨 Request #%d captured at %s\n", reqInfo.ID, reqInfo.Timestamp.Format("2006-01-02 15:04:05"))
+	fmt.Printf("%s\n", strings.Repeat("-", 80))
+
+	// Request line
+	fmt.Printf("🔹 %s %s %s\n", reqInfo.Method, reqInfo.Path, reqInfo.Proto)
+	fmt.Printf("🔹 Remote Address: %s\n", reqInfo.RemoteAddr)
+
+	// Headers
+	if len(reqInfo.Headers) > 0 {
+		fmt.Printf("\n📋 Headers:\n")
+		for name, values := range reqInfo.Headers {
+			for _, value := range values {
+				fmt.Printf("   %s: %s\n", name, value)
+			}
+		}
+	}
+
+	// Body
+	if reqInfo.Body != "" {
+		fmt.Printf("\n📄 Body:\n")
+		// Try to pretty print JSON
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, []byte(reqInfo.Body), "   ", "  "); err == nil {
+			fmt.Printf("   %s\n", prettyJSON.String())
+		} else {
+			// Not JSON, print as is with indentation
+			lines := strings.Split(reqInfo.Body, "\n")
+			for _, line := range lines {
+				fmt.Printf("   %s\n", line)
+			}
+		}
+	} else {
+		fmt.Printf("\n📄 Body: (empty)\n")
+	}
+
+	fmt.Printf("%s\n", strings.Repeat("=", 80))
 }
