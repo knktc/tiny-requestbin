@@ -61,7 +61,7 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 
 ## 截图
 
-*（您可以在此处添加截图）*
+*（截图待添加）*
 
 ## 贡献
 

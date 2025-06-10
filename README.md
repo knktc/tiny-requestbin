@@ -61,7 +61,7 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 
 ## Screenshots
 
-*(You may add screenshots here)*
+*(TBD)*
 
 ## Contributing
 
