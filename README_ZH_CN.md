@@ -63,7 +63,17 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 
 ## 截图
 
-*（截图待添加）*
+### CLI 模式
+
+当使用 `-cli` 参数运行时，HTTP 请求会以美观的格式直接显示在终端中：
+
+![CLI 模式截图](screenshots/run_in_cmd.png)
+
+### Web 界面
+
+Web 界面提供了一个简洁直观的方式来浏览和检查捕获的请求：
+
+![Web 界面截图](screenshots/webpage.png)
 
 ## 贡献
 

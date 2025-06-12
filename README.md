@@ -63,7 +63,17 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 
 ## Screenshots
 
-*(TBD)*
+### CLI Mode
+
+When running with the `-cli` flag, HTTP requests are beautifully formatted and displayed directly in the terminal:
+
+![CLI Mode Screenshot](screenshots/run_in_cmd.png)
+
+### Web Interface
+
+The web interface provides a clean and intuitive way to browse and inspect captured requests:
+
+![Web Interface Screenshot](screenshots/webpage.png)
 
 ## Contributing
 
