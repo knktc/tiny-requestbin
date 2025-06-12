@@ -4,6 +4,8 @@
 
 A lightweight HTTP request inspector and debugging tool written in Go. Tiny RequestBin captures and displays HTTP requests for inspection and debugging purposes.
 
+This project was initially created with Gemini and later modified with GitHub Copilot.
+
 [![Go Version](https://img.shields.io/github/go-mod/go-version/knktc/tiny-requestbin)](https://golang.org/)
 [![License](https://img.shields.io/github/license/knktc/tiny-requestbin)](LICENSE)
 

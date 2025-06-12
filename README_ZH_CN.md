@@ -4,6 +4,8 @@
 
 Tiny RequestBin 是一个用 Go 语言编写的轻量级 HTTP 请求检查和调试工具。它可以捕获并显示 HTTP 请求，便于检查和调试。
 
+本项目使用 Gemini 做了开局，后面使用 Github Copilot 进行修改。
+
 [![Go Version](https://img.shields.io/github/go-mod/go-version/knktc/tiny-requestbin)](https://golang.org/)
 [![License](https://img.shields.io/github/license/knktc/tiny-requestbin)](LICENSE)
 
