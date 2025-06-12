@@ -1,0 +1,76 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"  # 当推送以v开头的标签时触发，例如V20260612.0
+
+permissions:
+  contents: write  # 需要这个权限来创建release和上传文件
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'  # 使用较新的Go版本，可以根据需要调整
+          check-latest: true
+      
+      - name: Get tag name
+        id: get_tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      
+      - name: Build binaries
+        run: |
+          # 创建build目录存放二进制文件
+          mkdir -p builds
+          
+          # macOS (Intel)
+          GOOS=darwin GOARCH=amd64 go build -o builds/tiny-requestbin-${{ env.TAG }}-darwin-amd64 .
+          
+          # macOS (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -o builds/tiny-requestbin-${{ env.TAG }}-darwin-arm64 .
+          
+          # Linux (x86_64)
+          GOOS=linux GOARCH=amd64 go build -o builds/tiny-requestbin-${{ env.TAG }}-linux-amd64 .
+          
+          # Linux (ARM64)
+          GOOS=linux GOARCH=arm64 go build -o builds/tiny-requestbin-${{ env.TAG }}-linux-arm64 .
+          
+          # Windows (x86_64)
+          GOOS=windows GOARCH=amd64 go build -o builds/tiny-requestbin-${{ env.TAG }}-windows-amd64.exe .
+          
+          # 创建压缩文件
+          cd builds
+          
+          # 压缩Mac二进制文件
+          tar -czf tiny-requestbin-${{ env.TAG }}-darwin-amd64.tar.gz tiny-requestbin-${{ env.TAG }}-darwin-amd64
+          tar -czf tiny-requestbin-${{ env.TAG }}-darwin-arm64.tar.gz tiny-requestbin-${{ env.TAG }}-darwin-arm64
+          
+          # 压缩Linux二进制文件
+          tar -czf tiny-requestbin-${{ env.TAG }}-linux-amd64.tar.gz tiny-requestbin-${{ env.TAG }}-linux-amd64
+          tar -czf tiny-requestbin-${{ env.TAG }}-linux-arm64.tar.gz tiny-requestbin-${{ env.TAG }}-linux-arm64
+          
+          # 压缩Windows二进制文件
+          zip tiny-requestbin-${{ env.TAG }}-windows-amd64.zip tiny-requestbin-${{ env.TAG }}-windows-amd64.exe
+      
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ env.TAG }}
+          draft: false
+          prerelease: false
+          files: |
+            builds/tiny-requestbin-${{ env.TAG }}-darwin-amd64.tar.gz
+            builds/tiny-requestbin-${{ env.TAG }}-darwin-arm64.tar.gz
+            builds/tiny-requestbin-${{ env.TAG }}-linux-amd64.tar.gz
+            builds/tiny-requestbin-${{ env.TAG }}-linux-arm64.tar.gz
+            builds/tiny-requestbin-${{ env.TAG }}-windows-amd64.zip

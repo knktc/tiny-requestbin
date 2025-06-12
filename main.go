@@ -38,6 +38,9 @@ type PageData struct {
 	SelectedRequest *RequestInfo // Using a pointer so that it can be nil when no request is selected
 }
 
+// Version information will be set during build
+var Version = "dev"
+
 // Global store for our requests
 // We use global variables to store requests.
 var (
