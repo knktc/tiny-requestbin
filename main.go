@@ -97,6 +97,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// API endpoint to get requests as JSON for AJAX updates
+	if r.URL.Path == "/api/requests" {
+		apiRequestsHandler(w, r)
+		return
+	}
+
 	// If it's the root path, display the main panel.
 	if r.URL.Path == "/" {
 		mainPageHandler(w, r)
@@ -104,6 +110,26 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Otherwise, capture the request.
 	captureRequestHandler(w, r)
+}
+
+// apiRequestsHandler handles AJAX requests for getting the list of requests
+func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	mutex.RLock()
+	// Create a list of requests based on the ordered ID list.
+	// To have the newest requests shown at the top, we traverse the ID list in reverse order.
+	requests := make([]RequestInfo, len(requestIDs))
+	for i := 0; i < len(requestIDs); i++ {
+		id := requestIDs[len(requestIDs)-1-i]
+		requests[i] = requestsStore[id]
+	}
+	mutex.RUnlock()
+
+	if err := json.NewEncoder(w).Encode(requests); err != nil {
+		http.Error(w, "Failed to encode requests", http.StatusInternalServerError)
+		return
+	}
 }
 
 // captureRequestHandler captures the details of the incoming request and stores it.

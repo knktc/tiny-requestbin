@@ -86,10 +86,8 @@
         
         // 页面加载完成后初始化语言
         document.addEventListener('DOMContentLoaded', () => {
-            initLanguage();
-            
-            // 其他原有的DOMContentLoaded处理
-            // ...existing code...
+            // Note: initLanguage() will be called in the main DOMContentLoaded handler
+            // to ensure proper coordination with other initialization code
         });
     </script>
 </head>
@@ -223,6 +221,9 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize language first
+            initLanguage();
+            
             // --- Auto-refresh logic ---
             const checkbox = document.getElementById('autoRefreshCheckbox');
             const intervalInput = document.getElementById('refreshIntervalInput');
@@ -235,12 +236,73 @@
                     interval = 5; // 如果输入无效，则重置为默认值
                     intervalInput.value = '5';
                 }
-                refreshInterval = setInterval(() => window.location.reload(), interval * 1000);
+                refreshInterval = setInterval(() => updateRequestList(), interval * 1000);
             }
 
             function stopRefresh() {
                 clearInterval(refreshInterval);
                 refreshInterval = null;
+            }
+
+            // Function to update only the request list via AJAX
+            function updateRequestList() {
+                fetch('/api/requests')
+                    .then(response => response.json())
+                    .then(requests => {
+                        const requestList = document.querySelector('aside .overflow-y-auto');
+                        const currentViewId = new URLSearchParams(window.location.search).get('view_id');
+                        
+                        if (requests && requests.length > 0) {
+                            const ul = document.createElement('ul');
+                            ul.className = 'divide-y';
+                            
+                            requests.forEach(request => {
+                                const li = document.createElement('a');
+                                li.href = `/?view_id=${request.ID}`;
+                                li.className = `block p-4 hover:bg-gray-50 ${currentViewId == request.ID ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`;
+                                
+                                const methodColor = getMethodColor(request.Method);
+                                const timestamp = new Date(request.Timestamp).toLocaleString();
+                                
+                                li.innerHTML = `
+                                    <div class="flex justify-between items-center mb-1">
+                                        <div class="font-bold truncate ${currentViewId == request.ID ? 'text-indigo-700' : 'text-gray-800'}">
+                                            <span class="px-2 mr-2 text-xs leading-5 font-semibold rounded-full ${methodColor}">
+                                                ${request.Method}
+                                            </span>
+                                            <span class="font-mono">${request.Path}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-gray-500">${timestamp}</div>
+                                `;
+                                
+                                ul.appendChild(li);
+                            });
+                            
+                            requestList.innerHTML = '';
+                            requestList.appendChild(ul);
+                        } else {
+                            requestList.innerHTML = `
+                                <div class="p-6 text-center text-gray-500">
+                                    <p data-i18n="no_requests">${translations[currentLang]['no_requests']}</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating request list:', error);
+                    });
+            }
+
+            // Helper function to get method color class
+            function getMethodColor(method) {
+                switch(method) {
+                    case 'GET': return 'bg-green-100 text-green-800';
+                    case 'POST': return 'bg-blue-100 text-blue-800';
+                    case 'PUT': return 'bg-yellow-100 text-yellow-800';
+                    case 'DELETE': return 'bg-red-100 text-red-800';
+                    default: return 'bg-gray-100 text-gray-800';
+                }
             }
 
             checkbox.addEventListener('change', () => {
