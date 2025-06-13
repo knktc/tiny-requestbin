@@ -31,3 +31,6 @@ __debug_*
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# macos
+.DS_Store

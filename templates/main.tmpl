@@ -13,6 +13,7 @@
                 'subtitle': 'Send requests to your-host/your-path',
                 'auto_refresh': 'Auto Refresh',
                 'seconds': 'seconds',
+                'refresh': 'Refresh',
                 'captured_requests': 'Captured Requests',
                 'no_requests': 'No requests captured yet.',
                 'welcome_title': 'Welcome!',
@@ -32,6 +33,7 @@
                 'subtitle': '发送请求到 your-host/your-path',
                 'auto_refresh': '自动刷新',
                 'seconds': '秒',
+                'refresh': '刷新',
                 'captured_requests': '已捕获的请求',
                 'no_requests': '尚未捕获任何请求。',
                 'welcome_title': '欢迎！',
@@ -86,10 +88,8 @@
         
         // 页面加载完成后初始化语言
         document.addEventListener('DOMContentLoaded', () => {
-            initLanguage();
-            
-            // 其他原有的DOMContentLoaded处理
-            // ...existing code...
+            // Note: initLanguage() will be called in the main DOMContentLoaded handler
+            // to ensure proper coordination with other initialization code
         });
     </script>
 </head>
@@ -104,6 +104,12 @@
         </div>
         <div class="w-1/3 flex justify-end items-center pr-4">
             <div class="flex items-center space-x-2">
+                <button id="manualRefreshButton" class="hidden px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" data-i18n-title="refresh_requests">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span data-i18n="refresh">刷新</span>
+                </button>
                 <input type="checkbox" id="autoRefreshCheckbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                 <label for="autoRefreshCheckbox" class="text-sm text-gray-600" data-i18n="auto_refresh">自动刷新</label>
                 <input type="number" id="refreshIntervalInput" class="w-16 text-sm border-gray-300 rounded-md shadow-sm" min="1" value="5">
@@ -223,9 +229,13 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize language first
+            initLanguage();
+            
             // --- Auto-refresh logic ---
             const checkbox = document.getElementById('autoRefreshCheckbox');
             const intervalInput = document.getElementById('refreshIntervalInput');
+            const manualRefreshButton = document.getElementById('manualRefreshButton');
             let refreshInterval;
 
             function startRefresh() {
@@ -235,12 +245,81 @@
                     interval = 5; // 如果输入无效，则重置为默认值
                     intervalInput.value = '5';
                 }
-                refreshInterval = setInterval(() => window.location.reload(), interval * 1000);
+                refreshInterval = setInterval(() => updateRequestList(), interval * 1000);
             }
 
             function stopRefresh() {
                 clearInterval(refreshInterval);
                 refreshInterval = null;
+            }
+
+            function toggleManualRefreshButton() {
+                if (checkbox.checked) {
+                    manualRefreshButton.classList.add('hidden');
+                } else {
+                    manualRefreshButton.classList.remove('hidden');
+                }
+            }
+
+            // Function to update only the request list via AJAX
+            function updateRequestList() {
+                return fetch('/api/requests')
+                    .then(response => response.json())
+                    .then(requests => {
+                        const requestList = document.querySelector('aside .overflow-y-auto');
+                        const currentViewId = new URLSearchParams(window.location.search).get('view_id');
+                        
+                        if (requests && requests.length > 0) {
+                            const ul = document.createElement('ul');
+                            ul.className = 'divide-y';
+                            
+                            requests.forEach(request => {
+                                const li = document.createElement('a');
+                                li.href = `/?view_id=${request.ID}`;
+                                li.className = `block p-4 hover:bg-gray-50 ${currentViewId == request.ID ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`;
+                                
+                                const methodColor = getMethodColor(request.Method);
+                                const timestamp = new Date(request.Timestamp).toLocaleString();
+                                
+                                li.innerHTML = `
+                                    <div class="flex justify-between items-center mb-1">
+                                        <div class="font-bold truncate ${currentViewId == request.ID ? 'text-indigo-700' : 'text-gray-800'}">
+                                            <span class="px-2 mr-2 text-xs leading-5 font-semibold rounded-full ${methodColor}">
+                                                ${request.Method}
+                                            </span>
+                                            <span class="font-mono">${request.Path}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-gray-500">${timestamp}</div>
+                                `;
+                                
+                                ul.appendChild(li);
+                            });
+                            
+                            requestList.innerHTML = '';
+                            requestList.appendChild(ul);
+                        } else {
+                            requestList.innerHTML = `
+                                <div class="p-6 text-center text-gray-500">
+                                    <p data-i18n="no_requests">${translations[currentLang]['no_requests']}</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error updating request list:', error);
+                    });
+            }
+
+            // Helper function to get method color class
+            function getMethodColor(method) {
+                switch(method) {
+                    case 'GET': return 'bg-green-100 text-green-800';
+                    case 'POST': return 'bg-blue-100 text-blue-800';
+                    case 'PUT': return 'bg-yellow-100 text-yellow-800';
+                    case 'DELETE': return 'bg-red-100 text-red-800';
+                    default: return 'bg-gray-100 text-gray-800';
+                }
             }
 
             checkbox.addEventListener('change', () => {
@@ -252,6 +331,38 @@
                     localStorage.setItem('autoRefreshEnabled', 'false');
                     stopRefresh();
                 }
+                toggleManualRefreshButton();
+            });
+
+            // Manual refresh button click handler
+            let isRefreshing = false;
+            const originalButtonContent = `
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span data-i18n="refresh">${translations[currentLang]['refresh']}</span>
+            `;
+            
+            function resetButtonState() {
+                manualRefreshButton.innerHTML = originalButtonContent;
+                isRefreshing = false;
+            }
+            
+            manualRefreshButton.addEventListener('click', () => {
+                if (isRefreshing) return; // Prevent multiple clicks
+                
+                isRefreshing = true;
+                updateRequestList();
+                
+                // Add visual feedback
+                manualRefreshButton.innerHTML = `
+                    <svg class="w-4 h-4 inline mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span data-i18n="refresh">${translations[currentLang]['refresh']}</span>
+                `;
+                
+                setTimeout(resetButtonState, 500);
             });
             
             intervalInput.addEventListener('change', () => {
@@ -273,6 +384,7 @@
             if (isEnabled) {
                 startRefresh();
             }
+            toggleManualRefreshButton(); // Initialize manual refresh button visibility
 
             // --- Collapsible sections logic ---
             const sections = ['headers', 'body'];
