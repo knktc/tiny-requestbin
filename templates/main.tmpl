@@ -26,7 +26,9 @@
                 'source_ip': 'Source IP',
                 'headers': 'Headers',
                 'body': 'Body',
-                'no_body': 'This request has no body.'
+                'no_body': 'This request has no body.',
+                'copy': 'Copy',
+                'copied': 'Copied!'
             },
             'zh-CN': {
                 'title': 'Tiny RequestBin',
@@ -46,7 +48,9 @@
                 'source_ip': '源 IP',
                 'headers': '标头 (Headers)',
                 'body': '正文 (Body)',
-                'no_body': '该请求没有正文。'
+                'no_body': '该请求没有正文。',
+                'copy': '复制',
+                'copied': '已复制！'
             }
         };
 
@@ -209,9 +213,17 @@
                     <h2 class="text-xl font-semibold" data-i18n="body">正文 (Body)</h2>
                     <svg id="body-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                 </div>
-                <div id="body-content" class="p-6 transition-all duration-300">
+                <div id="body-content" class="p-6 transition-all duration-300 relative">
                     {{if .SelectedRequest.Body}}
-                        <pre class="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto"><code>{{prettyPrintJson .SelectedRequest.Body}}</code></pre>
+                        <div class="relative">
+                            <pre id="body-text" class="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto"><code>{{prettyPrintJson .SelectedRequest.Body}}</code></pre>
+                            <button id="copy-body-btn" class="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md text-xs transition-colors duration-200 flex items-center gap-1" title="复制正文内容">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span data-i18n="copy">复制</span>
+                            </button>
+                        </div>
                     {{else}}
                         <p class="text-gray-500" data-i18n="no_body">该请求没有正文。</p>
                     {{end}}
