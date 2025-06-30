@@ -56,7 +56,7 @@ tiny-requestbin
 
 ### Command-line Options
 
-- `-port`: Port for the server to listen on (default: 8080)
+- `-port`: Port for the server to listen on (default: 8282)
 - `-listen`: Address to listen on (default: 127.0.0.1)
 - `-max`: Maximum number of requests to store (default: 100)
 - `-cli`: Enable CLI mode to print requests to terminal (default: false)
