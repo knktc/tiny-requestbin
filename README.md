@@ -19,13 +19,26 @@ This project was initially created with Gemini and later modified with GitHub Co
 
 ## Installation
 
-### Option 1: Install using `go install`
+### Option 1: Using Docker (Recommended)
+
+```bash
+# Pull and run the latest image
+docker run -p 8282:8282 knktc/tiny-requestbin
+
+# Or run with custom options
+docker run -p 1122:1122 knktc/tiny-requestbin -port 1122 -listen 0.0.0.0 -max 1000
+
+# Using docker-compose (recommended for production)
+docker-compose up -d
+```
+
+### Option 2: Install using `go install`
 
 ```bash
 go install github.com/knktc/tiny-requestbin@latest
 ```
 
-### Option 2: Build from source
+### Option 3: Build from source
 
 ```bash
 git clone https://github.com/knktc/tiny-requestbin.git
@@ -60,6 +73,24 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 2. Send HTTP requests to `http://[listen-address]:[port]/any/path`
 3. View captured requests in your browser at `http://[listen-address]:[port]/`
 4. If CLI mode is enabled, requests will also be printed to the terminal
+
+## Docker Multi-Architecture Support
+
+The Docker image supports multiple architectures:
+- `linux/amd64` (Intel/AMD 64-bit)
+- `linux/arm64` (ARM 64-bit, Apple Silicon, etc.)
+
+Multi-architecture images are automatically built and published via GitHub Actions when tags are pushed.
+
+### Local Development
+
+```bash
+# Build and test locally (single architecture)
+make docker-test
+
+# Build for current platform only
+make docker-build
+```
 
 ## Screenshots
 

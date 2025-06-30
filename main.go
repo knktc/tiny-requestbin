@@ -62,7 +62,7 @@ var (
 // It sets up routes and starts the HTTP server.
 func main() {
 	// Define command-line flags to specify port and maximum number of requests.
-	port := flag.Int("port", 8080, "Port for the server to listen on")
+	port := flag.Int("port", 8282, "Port for the server to listen on")
 	listen := flag.String("listen", "127.0.0.1", "Address to listen on")
 	max := flag.Int("max", 100, "Maximum number of requests to store")
 	cli := flag.Bool("cli", false, "Print requests to command line")
