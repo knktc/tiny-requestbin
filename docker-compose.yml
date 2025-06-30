@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  tiny-requestbin:
+    image: knktc/tiny-requestbin:latest
+    ports:
+      - "8282:8282"
+    
+    # Custom startup arguments
+    command: ["-port", "8282", "-listen", "0.0.0.0", "-max", "100"]
+
+    restart: unless-stopped

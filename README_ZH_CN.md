@@ -19,13 +19,26 @@ Tiny RequestBin 是一个用 Go 语言编写的轻量级 HTTP 请求检查和调
 
 ## 安装
 
-### 方式一：使用 `go install` 安装
+### 方式一：使用 Docker（推荐）
+
+```bash
+# 拉取并运行最新镜像
+docker run -p 3000:3000 knktc/tiny-requestbin
+
+# 或者使用自定义选项运行
+docker run -p 8080:8080 knktc/tiny-requestbin -port 8080 -listen 0.0.0.0
+
+# 使用 docker-compose（生产环境推荐）
+docker-compose up -d
+```
+
+### 方式二：使用 `go install` 安装
 
 ```bash
 go install github.com/knktc/tiny-requestbin@latest
 ```
 
-### 方式二：从源码构建
+### 方式三：从源码构建
 
 ```bash
 git clone https://github.com/knktc/tiny-requestbin.git
@@ -60,6 +73,24 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 2. 向 `http://[监听地址]:[端口]/任意/路径` 发送 HTTP 请求
 3. 在浏览器中访问 `http://[监听地址]:[端口]/` 查看捕获的请求
 4. 如果启用了 CLI 模式，请求也会打印到终端
+
+## Docker 多架构支持
+
+Docker 镜像支持多种架构：
+- `linux/amd64`（Intel/AMD 64位）
+- `linux/arm64`（ARM 64位，Apple Silicon 等）
+
+多架构镜像会在推送 tag 时通过 GitHub Actions 自动构建和发布。
+
+### 本地开发
+
+```bash
+# 本地构建和测试（单架构）
+make docker-test
+
+# 仅为当前平台构建
+make docker-build
+```
 
 ## 截图
 

@@ -1,0 +1,34 @@
+# Ignore build artifacts
+builds/
+tiny-requestbin
+*.exe
+
+# Ignore Git related files
+.git/
+.gitignore
+
+# Ignore IDE configurations
+.vscode/
+.idea/
+
+# Ignore documentation and screenshots
+README.md
+README_ZH_CN.md
+screenshots/
+LICENSE
+
+# Ignore GitHub Actions
+.github/
+
+# Ignore Docker related files
+docker-compose.yml
+.dockerignore
+test-local-build.sh
+Makefile
+
+# Ignore test files
+*_test.go
+
+# Ignore temporary files
+*.tmp
+*.log
