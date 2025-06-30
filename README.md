@@ -26,9 +26,9 @@ This project was initially created with Gemini and later modified with GitHub Co
 docker run -p 8282:8282 knktc/tiny-requestbin
 
 # Or run with custom options
-docker run -p 1122:1122 knktc/tiny-requestbin -port 1122 -listen 0.0.0.0 -max 1000
+docker run -p 8282:8282 knktc/tiny-requestbin -port 8282 -listen 0.0.0.0 -max 1000
 
-# Using docker-compose (recommended for production)
+# Using docker-compose
 docker-compose up -d
 ```
 

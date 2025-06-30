@@ -23,12 +23,12 @@ Tiny RequestBin 是一个用 Go 语言编写的轻量级 HTTP 请求检查和调
 
 ```bash
 # 拉取并运行最新镜像
-docker run -p 3000:3000 knktc/tiny-requestbin
+docker run -p 8282:8282 knktc/tiny-requestbin
 
 # 或者使用自定义选项运行
-docker run -p 8080:8080 knktc/tiny-requestbin -port 8080 -listen 0.0.0.0
+docker run -p 8282:8282 knktc/tiny-requestbin -port 8282 -listen 0.0.0.0
 
-# 使用 docker-compose（生产环境推荐）
+# 使用 docker-compose
 docker-compose up -d
 ```
 
