@@ -5,8 +5,7 @@ FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
 # Install necessary packages
-RUN apk add --no-cache git ca-certificates
-
+RUN apk add --no-cache git
 # Copy go mod files
 COPY go.mod ./
 
@@ -22,10 +21,7 @@ RUN CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o tiny-requestbi
 # Use minimal base image
 FROM scratch
 
-# Copy CA certificates from builder stage
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy binary from builder stage
+# Copy the binary from builder stage
 COPY --from=builder /app/tiny-requestbin /tiny-requestbin
 
 # Expose port
@@ -33,4 +29,4 @@ EXPOSE 8282
 
 # Set startup command
 ENTRYPOINT ["/tiny-requestbin"]
-CMD ["-port", "8282"]
+CMD ["-port", "8282", "-listen", "0.0.0.0"]
