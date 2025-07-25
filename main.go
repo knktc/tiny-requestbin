@@ -41,6 +41,11 @@ type PageData struct {
 // Version information will be set during build
 var Version = "dev"
 
+// Constants for error messages
+const (
+	InternalServerError = "Internal Server Error"
+)
+
 // Global store for our requests
 // We use global variables to store requests.
 var (
@@ -112,21 +117,98 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	captureRequestHandler(w, r)
 }
 
-// apiRequestsHandler handles AJAX requests for getting the list of requests
+// PaginatedResponse represents a paginated API response
+type PaginatedResponse struct {
+	Requests   []RequestInfo `json:"requests"`
+	Page       int           `json:"page"`
+	Limit      int           `json:"limit"`
+	Total      int           `json:"total"`
+	TotalPages int           `json:"total_pages"`
+	HasNext    bool          `json:"has_next"`
+	HasPrev    bool          `json:"has_prev"`
+}
+
+// parsePaginationParams extracts and validates pagination parameters from request
+func parsePaginationParams(r *http.Request) (page, limit int) {
+	page = 1
+	limit = 20 // Default limit
+
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 { // Max limit of 100
+			limit = l
+		}
+	}
+
+	return page, limit
+}
+
+// getRequestsPage returns a paginated slice of requests
+func getRequestsPage(page, limit, total int) []RequestInfo {
+	if total == 0 {
+		return make([]RequestInfo, 0)
+	}
+
+	// Calculate pagination
+	offset := (page - 1) * limit
+	start := offset
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+
+	requests := make([]RequestInfo, end-start)
+	for i := start; i < end; i++ {
+		id := requestIDs[total-1-i] // Reverse order to show newest first
+		requests[i-start] = requestsStore[id]
+	}
+
+	return requests
+}
+
+// apiRequestsHandler handles AJAX requests for getting the list of requests with pagination support
 func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Parse pagination parameters
+	page, limit := parsePaginationParams(r)
+
 	mutex.RLock()
-	// Create a list of requests based on the ordered ID list.
-	// To have the newest requests shown at the top, we traverse the ID list in reverse order.
-	requests := make([]RequestInfo, len(requestIDs))
-	for i := 0; i < len(requestIDs); i++ {
-		id := requestIDs[len(requestIDs)-1-i]
-		requests[i] = requestsStore[id]
+	total := len(requestIDs)
+
+	// Calculate pagination
+	totalPages := (total + limit - 1) / limit // Ceiling division
+	if totalPages == 0 {
+		totalPages = 1
 	}
+
+	// Validate page number
+	if page > totalPages {
+		page = totalPages
+	}
+
+	// Get paginated requests
+	requests := getRequestsPage(page, limit, total)
+
 	mutex.RUnlock()
 
-	if err := json.NewEncoder(w).Encode(requests); err != nil {
+	// Create paginated response
+	response := PaginatedResponse{
+		Requests:   requests,
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, "Failed to encode requests", http.StatusInternalServerError)
 		return
 	}
@@ -230,7 +312,7 @@ func renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
 	tmplContent, err := templateFS.ReadFile("templates/main.tmpl")
 	if err != nil {
 		log.Printf("Error reading template file: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, InternalServerError, http.StatusInternalServerError)
 		return
 	}
 
@@ -255,7 +337,7 @@ func renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
 
 	if err != nil {
 		log.Printf("Error parsing template %s: %v", tmplName, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, InternalServerError, http.StatusInternalServerError)
 		return
 	}
 
@@ -263,7 +345,7 @@ func renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
 	err = tmpl.Execute(buf, data)
 	if err != nil {
 		log.Printf("Error executing template %s: %v", tmplName, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, InternalServerError, http.StatusInternalServerError)
 		return
 	}
 

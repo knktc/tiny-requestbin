@@ -156,6 +156,22 @@
                 </div>
                 {{end}}
             </div>
+            <!-- Pagination Controls -->
+            <div id="paginationControls" class="p-4 border-t bg-gray-50 hidden">
+                <div class="flex items-center justify-between text-sm">
+                    <div class="text-gray-600">
+                        <span id="paginationInfo">第 1 页，共 1 页 (总计 0 个请求)</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="prevPageBtn" class="px-3 py-1 text-sm bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            上一页
+                        </button>
+                        <button id="nextPageBtn" class="px-3 py-1 text-sm bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            下一页
+                        </button>
+                    </div>
+                </div>
+            </div>
         </aside>
 
         <!-- Right Column: Request Details -->
@@ -244,11 +260,22 @@
             // Initialize language first
             initLanguage();
             
+            // --- Pagination variables ---
+            let currentPage = 1;
+            let totalPages = 1;
+            let isUpdating = false;
+            
             // --- Auto-refresh logic ---
             const checkbox = document.getElementById('autoRefreshCheckbox');
             const intervalInput = document.getElementById('refreshIntervalInput');
             const manualRefreshButton = document.getElementById('manualRefreshButton');
             let refreshInterval;
+
+            // --- Pagination controls ---
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const paginationControls = document.getElementById('paginationControls');
 
             function startRefresh() {
                 if (refreshInterval) clearInterval(refreshInterval);
@@ -273,19 +300,43 @@
                 }
             }
 
+            // Function to update pagination info
+            function updatePaginationInfo(data) {
+                const { page, total_pages, total } = data;
+                paginationInfo.textContent = `第 ${page} 页，共 ${total_pages} 页 (总计 ${total} 个请求)`;
+                
+                prevPageBtn.disabled = !data.has_prev;
+                nextPageBtn.disabled = !data.has_next;
+                
+                currentPage = page;
+                totalPages = total_pages;
+                
+                // Show/hide pagination controls based on whether there are multiple pages
+                if (total_pages > 1) {
+                    paginationControls.classList.remove('hidden');
+                } else {
+                    paginationControls.classList.add('hidden');
+                }
+            }
+
             // Function to update only the request list via AJAX
-            function updateRequestList() {
-                return fetch('/api/requests')
+            function updateRequestList(page = currentPage) {
+                if (isUpdating) return;
+                isUpdating = true;
+                
+                return fetch(`/api/requests?page=${page}&limit=20`)
                     .then(response => response.json())
-                    .then(requests => {
+                    .then(data => {
                         const requestList = document.querySelector('aside .overflow-y-auto');
                         const currentViewId = new URLSearchParams(window.location.search).get('view_id');
                         
-                        if (requests && requests.length > 0) {
+                        updatePaginationInfo(data);
+                        
+                        if (data.requests && data.requests.length > 0) {
                             const ul = document.createElement('ul');
                             ul.className = 'divide-y';
                             
-                            requests.forEach(request => {
+                            data.requests.forEach(request => {
                                 const li = document.createElement('a');
                                 li.href = `/?view_id=${request.ID}`;
                                 li.className = `block p-4 hover:bg-gray-50 ${currentViewId == request.ID ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`;
@@ -320,6 +371,9 @@
                     })
                     .catch(error => {
                         console.error('Error updating request list:', error);
+                    })
+                    .finally(() => {
+                        isUpdating = false;
                     });
             }
 
@@ -333,6 +387,19 @@
                     default: return 'bg-gray-100 text-gray-800';
                 }
             }
+
+            // Pagination button event listeners
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    updateRequestList(currentPage - 1);
+                }
+            });
+
+            nextPageBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    updateRequestList(currentPage + 1);
+                }
+            });
 
             checkbox.addEventListener('change', () => {
                 localStorage.setItem('autoRefreshInterval', intervalInput.value);
