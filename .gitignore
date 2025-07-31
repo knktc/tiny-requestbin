@@ -30,7 +30,10 @@ __debug_*
 
 # Editor/IDE
 # .idea/
-# .vscode/
+.vscode/
+
+# Build output
+tiny-requestbin
 
 # macos
 .DS_Store
