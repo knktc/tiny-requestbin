@@ -344,7 +344,7 @@
                                 li.className = `request-link block p-4 hover:bg-gray-50 ${currentViewId == request.ID ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`;
                                 
                                 const methodColor = getMethodColor(request.Method);
-                                const timestamp = new Date(request.Timestamp).toLocaleString();
+                                const timestamp = formatTime(request.Timestamp);
                                 
                                 li.innerHTML = `
                                     <div class="flex justify-between items-center mb-1">
@@ -391,6 +391,18 @@
                     case 'DELETE': return 'bg-red-100 text-red-800';
                     default: return 'bg-gray-100 text-gray-800';
                 }
+            }
+
+            // Helper function to format time in the same format as server-side formatTime
+            function formatTime(dateString) {
+                const date = new Date(dateString);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
             }
 
             // Pagination button event listeners
