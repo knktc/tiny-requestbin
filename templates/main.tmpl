@@ -534,6 +534,73 @@
                     setCollapsedState(initiallyCollapsed, true);
                 }
             });
+
+            // --- Copy button functionality ---
+            const copyBodyBtn = document.getElementById('copy-body-btn');
+            if (copyBodyBtn) {
+                copyBodyBtn.addEventListener('click', async () => {
+                    const bodyText = document.getElementById('body-text');
+                    if (bodyText) {
+                        try {
+                            // Get the text content without HTML tags
+                            const textToCopy = bodyText.textContent || bodyText.innerText;
+                            
+                            // Use the modern clipboard API if available
+                            if (navigator.clipboard && window.isSecureContext) {
+                                await navigator.clipboard.writeText(textToCopy);
+                            } else {
+                                // Fallback for older browsers or non-HTTPS contexts
+                                const textArea = document.createElement('textarea');
+                                textArea.value = textToCopy;
+                                textArea.style.position = 'fixed';
+                                textArea.style.opacity = '0';
+                                document.body.appendChild(textArea);
+                                textArea.focus();
+                                textArea.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(textArea);
+                            }
+                            
+                            // Visual feedback
+                            const originalContent = copyBodyBtn.innerHTML;
+                            copyBodyBtn.innerHTML = `
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span data-i18n="copied">${translations[currentLang]['copied']}</span>
+                            `;
+                            copyBodyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                            copyBodyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                            
+                            // Reset after 2 seconds
+                            setTimeout(() => {
+                                copyBodyBtn.innerHTML = originalContent;
+                                copyBodyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                                copyBodyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                            }, 2000);
+                            
+                        } catch (err) {
+                            console.error('Failed to copy text: ', err);
+                            // Show error feedback
+                            const originalContent = copyBodyBtn.innerHTML;
+                            copyBodyBtn.innerHTML = `
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                <span>失败</span>
+                            `;
+                            copyBodyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                            copyBodyBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                            
+                            setTimeout(() => {
+                                copyBodyBtn.innerHTML = originalContent;
+                                copyBodyBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                                copyBodyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                            }, 2000);
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>
