@@ -30,12 +30,23 @@ type RequestInfo struct {
 	Body       string
 	Timestamp  time.Time
 	RemoteAddr string
+	ProjectID  string
+}
+
+// Project structure represents a project workspace
+type Project struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // PageData structure is used to pass data to the main template.
 type PageData struct {
 	AllRequests     []RequestInfo
 	SelectedRequest *RequestInfo // Using a pointer so that it can be nil when no request is selected
+	Projects        []Project
+	CurrentProject  *Project
 }
 
 // Version information will be set during build
@@ -46,13 +57,17 @@ const (
 	InternalServerError = "Internal Server Error"
 )
 
-// Global store for our requests
-// We use global variables to store requests.
+// Global store for our requests and projects
+// We use global variables to store requests and projects.
 var (
 	// requestsStore is used to quickly access requests by ID.
 	requestsStore = make(map[int]RequestInfo)
 	// requestIDs maintains the IDs of all requests in chronological order, used to implement a first-in-first-out (FIFO) limit policy.
 	requestIDs []int
+	// projectsStore stores all projects by their ID
+	projectsStore = make(map[string]Project)
+	// projectRequests maps project ID to request IDs for that project
+	projectRequests = make(map[string][]int)
 	// Use a read-write mutex to protect concurrent access to shared resources.
 	mutex = &sync.RWMutex{}
 	// nextID is used to generate a unique ID for each new request.
@@ -77,6 +92,9 @@ func main() {
 	maxRequests = *max
 	cliMode = *cli
 
+	// Initialize default project
+	initializeDefaultProject()
+
 	// Register the handler function as the handler for all requests.
 	http.HandleFunc("/", handler)
 
@@ -91,6 +109,22 @@ func main() {
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+}
+
+// initializeDefaultProject creates a default project if none exists
+func initializeDefaultProject() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	
+	defaultProject := Project{
+		ID:          "default",
+		Name:        "Default Project",
+		Description: "Default project for all requests",
+		CreatedAt:   time.Now(),
+	}
+	
+	projectsStore["default"] = defaultProject
+	projectRequests["default"] = make([]int, 0)
 }
 
 // handler is the central router for all incoming requests.
@@ -108,6 +142,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// API endpoint to get projects
+	if r.URL.Path == "/api/projects" {
+		apiProjectsHandler(w, r)
+		return
+	}
+
+	// API endpoint to create a new project
+	if r.URL.Path == "/api/projects/create" && r.Method == "POST" {
+		createProjectHandler(w, r)
+		return
+	}
+
 	// If it's the root path, display the main panel.
 	if r.URL.Path == "/" {
 		mainPageHandler(w, r)
@@ -117,7 +163,82 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	captureRequestHandler(w, r)
 }
 
-// PaginatedResponse represents a paginated API response
+// getCurrentProject gets the current project from the request or returns default
+func getCurrentProject(r *http.Request) string {
+	projectID := r.URL.Query().Get("project")
+	if projectID == "" {
+		projectID = "default"
+	}
+	
+	mutex.RLock()
+	_, exists := projectsStore[projectID]
+	mutex.RUnlock()
+	
+	if !exists {
+		return "default"
+	}
+	
+	return projectID
+}
+
+// apiProjectsHandler handles requests for getting project list
+func apiProjectsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	mutex.RLock()
+	projects := make([]Project, 0, len(projectsStore))
+	for _, project := range projectsStore {
+		projects = append(projects, project)
+	}
+	mutex.RUnlock()
+	
+	if err := json.NewEncoder(w).Encode(projects); err != nil {
+		http.Error(w, "Failed to encode projects", http.StatusInternalServerError)
+		return
+	}
+}
+
+// CreateProjectRequest represents the request body for creating a new project
+type CreateProjectRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// createProjectHandler handles creating new projects
+func createProjectHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	var req CreateProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	if req.Name == "" {
+		http.Error(w, "Project name is required", http.StatusBadRequest)
+		return
+	}
+	
+	// Generate a simple ID based on name
+	projectID := strings.ToLower(strings.ReplaceAll(req.Name, " ", "-"))
+	projectID = fmt.Sprintf("%s-%d", projectID, time.Now().Unix())
+	
+	mutex.Lock()
+	project := Project{
+		ID:          projectID,
+		Name:        req.Name,
+		Description: req.Description,
+		CreatedAt:   time.Now(),
+	}
+	projectsStore[projectID] = project
+	projectRequests[projectID] = make([]int, 0)
+	mutex.Unlock()
+	
+	if err := json.NewEncoder(w).Encode(project); err != nil {
+		http.Error(w, "Failed to encode project", http.StatusInternalServerError)
+		return
+	}
+}
 type PaginatedResponse struct {
 	Requests   []RequestInfo `json:"requests"`
 	Page       int           `json:"page"`
@@ -148,9 +269,17 @@ func parsePaginationParams(r *http.Request) (page, limit int) {
 	return page, limit
 }
 
-// getRequestsPage returns a paginated slice of requests
-func getRequestsPage(page, limit, total int) []RequestInfo {
+// getRequestsPage returns a paginated slice of requests for a specific project
+func getRequestsPage(page, limit, total int, projectID string) []RequestInfo {
 	if total == 0 {
+		return make([]RequestInfo, 0)
+	}
+
+	mutex.RLock()
+	projectReqIDs, exists := projectRequests[projectID]
+	mutex.RUnlock()
+	
+	if !exists {
 		return make([]RequestInfo, 0)
 	}
 
@@ -158,13 +287,13 @@ func getRequestsPage(page, limit, total int) []RequestInfo {
 	offset := (page - 1) * limit
 	start := offset
 	end := offset + limit
-	if end > total {
-		end = total
+	if end > len(projectReqIDs) {
+		end = len(projectReqIDs)
 	}
 
 	requests := make([]RequestInfo, end-start)
 	for i := start; i < end; i++ {
-		id := requestIDs[total-1-i] // Reverse order to show newest first
+		id := projectReqIDs[len(projectReqIDs)-1-i] // Reverse order to show newest first
 		requests[i-start] = requestsStore[id]
 	}
 
@@ -177,9 +306,29 @@ func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Parse pagination parameters
 	page, limit := parsePaginationParams(r)
+	
+	// Get current project
+	projectID := getCurrentProject(r)
 
 	mutex.RLock()
-	total := len(requestIDs)
+	projectReqIDs, exists := projectRequests[projectID]
+	if !exists {
+		mutex.RUnlock()
+		// Project doesn't exist, return empty result
+		response := PaginatedResponse{
+			Requests:   make([]RequestInfo, 0),
+			Page:       1,
+			Limit:      limit,
+			Total:      0,
+			TotalPages: 1,
+			HasNext:    false,
+			HasPrev:    false,
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	
+	total := len(projectReqIDs)
 
 	// Calculate pagination
 	totalPages := (total + limit - 1) / limit // Ceiling division
@@ -193,7 +342,7 @@ func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get paginated requests
-	requests := getRequestsPage(page, limit, total)
+	requests := getRequestsPage(page, limit, total, projectID)
 
 	mutex.RUnlock()
 
@@ -224,6 +373,9 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	// Get current project from query parameter, default to "default"
+	projectID := getCurrentProject(r)
+
 	mutex.Lock()
 	id := nextID
 	nextID++
@@ -239,24 +391,36 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 		Body:       string(bodyBytes),
 		Timestamp:  time.Now(),
 		RemoteAddr: r.RemoteAddr,
+		ProjectID:  projectID,
 	}
 
 	// Lock to safely update the storage.
 	mutex.Lock()
 	requestsStore[id] = reqInfo
-	requestIDs = append(requestIDs, id) // Add the ID of the new request to the end of the list.
+	requestIDs = append(requestIDs, id) // Add to global list
+	
+	// Add to project-specific list
+	projectRequests[projectID] = append(projectRequests[projectID], id)
 
-	// If the number of requests exceeds the maximum limit, delete the oldest one.
-	if len(requestIDs) > maxRequests {
-		oldestID := requestIDs[0]       // Get the oldest ID.
-		delete(requestsStore, oldestID) // Delete it from the map.
-		requestIDs = requestIDs[1:]     // Remove from the beginning of the slice.
+	// If the number of requests in this project exceeds the maximum limit, delete the oldest one.
+	if len(projectRequests[projectID]) > maxRequests {
+		oldestID := projectRequests[projectID][0]       // Get the oldest ID for this project.
+		delete(requestsStore, oldestID) // Delete it from the global map.
+		projectRequests[projectID] = projectRequests[projectID][1:]     // Remove from the beginning of the project slice.
+		
+		// Also remove from global requestIDs list
+		for i, globalID := range requestIDs {
+			if globalID == oldestID {
+				requestIDs = append(requestIDs[:i], requestIDs[i+1:]...)
+				break
+			}
+		}
 	}
 	mutex.Unlock()
 
 	// Respond to the client, informing that the request has been captured.
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Request captured successfully. View at http://%s/?view_id=%d", r.Host, id)
+	fmt.Fprintf(w, "Request captured successfully in project '%s'. View at http://%s/?project=%s&view_id=%d", projectID, r.Host, projectID, id)
 
 	// Print request details to CLI if in CLI mode
 	if cliMode {
@@ -266,13 +430,32 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 // mainPageHandler prepares data and renders the main page with a left-right layout.
 func mainPageHandler(w http.ResponseWriter, r *http.Request) {
+	// Get current project
+	projectID := getCurrentProject(r)
+	
 	mutex.RLock()
-	// Create a list of requests based on the ordered ID list.
+	// Get projects list
+	projects := make([]Project, 0, len(projectsStore))
+	for _, project := range projectsStore {
+		projects = append(projects, project)
+	}
+	
+	// Get current project details
+	var currentProject *Project
+	if proj, exists := projectsStore[projectID]; exists {
+		currentProject = &proj
+	}
+	
+	// Create a list of requests for the current project based on the ordered ID list.
 	// To have the newest requests shown at the top, we traverse the ID list in reverse order.
-	requests := make([]RequestInfo, len(requestIDs))
-	for i := 0; i < len(requestIDs); i++ {
-		id := requestIDs[len(requestIDs)-1-i]
-		requests[i] = requestsStore[id]
+	projectReqIDs, exists := projectRequests[projectID]
+	requests := make([]RequestInfo, 0)
+	if exists {
+		requests = make([]RequestInfo, len(projectReqIDs))
+		for i := 0; i < len(projectReqIDs); i++ {
+			id := projectReqIDs[len(projectReqIDs)-1-i]
+			requests[i] = requestsStore[id]
+		}
 	}
 	mutex.RUnlock()
 
@@ -287,7 +470,7 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 			// We need to look up directly from the map, as the `requests` list may not contain all historical requests.
 			req, ok := requestsStore[id]
 			mutex.RUnlock()
-			if ok {
+			if ok && req.ProjectID == projectID { // Ensure request belongs to current project
 				selectedReq = &req
 			}
 		}
@@ -301,6 +484,8 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 	pageData := PageData{
 		AllRequests:     requests,
 		SelectedRequest: selectedReq,
+		Projects:        projects,
+		CurrentProject:  currentProject,
 	}
 
 	renderTemplate(w, "main", pageData)
