@@ -20,6 +20,9 @@ import (
 //go:embed templates/main.tmpl
 var templateFS embed.FS
 
+//go:embed site
+var siteFS embed.FS
+
 // RequestInfo structure is used to store the detailed information of captured HTTP requests.
 type RequestInfo struct {
 	ID         int
@@ -99,6 +102,33 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// Ignore requests for browser icons, directly return 204 No Content, so they won't be recorded.
 	if r.URL.Path == "/favicon.ico" {
 		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Serve static site homepage
+	if strings.HasPrefix(r.URL.Path, "/site/") {
+		// Strip the /site/ prefix to get the actual file path
+		filePath := strings.TrimPrefix(r.URL.Path, "/site/")
+		if filePath == "" || filePath == "/" {
+			filePath = "index.html"
+		}
+		filePath = "site/" + filePath
+		
+		// Read the file from embedded filesystem
+		content, err := siteFS.ReadFile(filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		
+		// Set appropriate content type
+		if strings.HasSuffix(filePath, ".css") {
+			w.Header().Set("Content-Type", "text/css")
+		} else if strings.HasSuffix(filePath, ".html") {
+			w.Header().Set("Content-Type", "text/html")
+		}
+		
+		w.Write(content)
 		return
 	}
 

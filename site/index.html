@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tiny RequestBin - A lightweight HTTP request inspector and debugging tool written in Go">
+    <title>Tiny RequestBin - HTTP Request Inspector</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📬</text></svg>">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <span class="icon">📬</span>
+                <span class="brand-name">Tiny RequestBin</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#installation">Installation</a>
+                <a href="https://github.com/knktc/tiny-requestbin" target="_blank" rel="noopener">GitHub</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Tiny RequestBin</h1>
+                <p class="hero-subtitle">A lightweight HTTP request inspector and debugging tool written in Go</p>
+                <p class="hero-description">Capture, inspect, and debug HTTP requests with ease. Perfect for webhook testing, API development, and debugging integrations.</p>
+                <div class="hero-buttons">
+                    <a href="#installation" class="btn btn-primary">Get Started</a>
+                    <a href="https://github.com/knktc/tiny-requestbin" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="features" class="features">
+            <div class="container">
+                <h2 class="section-title">Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <h3>Lightweight & Fast</h3>
+                        <p>Simple implementation with minimal dependencies. Written in Go for maximum performance and efficiency.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <h3>Request Inspection</h3>
+                        <p>View detailed information about incoming HTTP requests including headers, body, method, and timestamps.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🌐</div>
+                        <h3>Web UI</h3>
+                        <p>Clean and intuitive interface to browse captured requests with pagination and real-time updates.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📋</div>
+                        <h3>CLI Mode</h3>
+                        <p>Option to print requests directly to the terminal with beautiful formatting for debugging.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Local Only</h3>
+                        <p>All data stays on your machine, no external services needed. Complete privacy and control.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🐳</div>
+                        <h3>Docker Support</h3>
+                        <p>Multi-architecture Docker images available for easy deployment on any platform.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="how-it-works">
+            <div class="container">
+                <h2 class="section-title">How It Works</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Start the Server</h3>
+                            <p>Launch Tiny RequestBin using Docker, Go install, or build from source with your preferred configuration.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Send HTTP Requests</h3>
+                            <p>Point your webhooks, API calls, or any HTTP requests to the server endpoint at any path you choose.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>View Captured Requests</h3>
+                            <p>Open the web interface in your browser to inspect all captured requests with full details.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Debug & Test</h3>
+                            <p>Analyze request headers, body, timestamps, and more to debug your integrations effectively.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation" class="installation">
+            <div class="container">
+                <h2 class="section-title">Installation</h2>
+                <div class="installation-methods">
+                    <div class="method">
+                        <h3>🐳 Using Docker (Recommended)</h3>
+                        <div class="code-block">
+                            <pre><code># Pull and run the latest image
+docker run -p 8282:8282 knktc/tiny-requestbin
+
+# Or with custom options
+docker run -p 8282:8282 knktc/tiny-requestbin \
+  -port 8282 -listen 0.0.0.0 -max 1000</code></pre>
+                        </div>
+                    </div>
+                    <div class="method">
+                        <h3>📦 Using Go Install</h3>
+                        <div class="code-block">
+                            <pre><code>go install github.com/knktc/tiny-requestbin@latest</code></pre>
+                        </div>
+                    </div>
+                    <div class="method">
+                        <h3>🔧 Build from Source</h3>
+                        <div class="code-block">
+                            <pre><code>git clone https://github.com/knktc/tiny-requestbin.git
+cd tiny-requestbin
+go build</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="usage">
+                    <h3>Command-line Options</h3>
+                    <ul class="options-list">
+                        <li><code>-port</code> — Port for the server to listen on (default: 8282)</li>
+                        <li><code>-listen</code> — Address to listen on (default: 127.0.0.1)</li>
+                        <li><code>-max</code> — Maximum number of requests to store (default: 100)</li>
+                        <li><code>-cli</code> — Enable CLI mode to print requests to terminal</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="use-cases">
+            <div class="container">
+                <h2 class="section-title">Perfect For</h2>
+                <div class="use-cases-grid">
+                    <div class="use-case">
+                        <h3>🔗 Webhook Testing</h3>
+                        <p>Test and debug webhooks from third-party services without deploying to production.</p>
+                    </div>
+                    <div class="use-case">
+                        <h3>🛠️ API Development</h3>
+                        <p>Inspect requests during API development to ensure correct formatting and data.</p>
+                    </div>
+                    <div class="use-case">
+                        <h3>🔌 Integration Debugging</h3>
+                        <p>Debug integration issues by capturing and analyzing HTTP traffic.</p>
+                    </div>
+                    <div class="use-case">
+                        <h3>📱 Mobile App Testing</h3>
+                        <p>Monitor HTTP requests from mobile apps during development and testing.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Tiny RequestBin</h4>
+                    <p>A lightweight HTTP request inspector</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Links</h4>
+                    <ul>
+                        <li><a href="https://github.com/knktc/tiny-requestbin" target="_blank" rel="noopener">GitHub Repository</a></li>
+                        <li><a href="https://github.com/knktc/tiny-requestbin/issues" target="_blank" rel="noopener">Report Issues</a></li>
+                        <li><a href="https://github.com/knktc/tiny-requestbin/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://github.com/knktc/tiny-requestbin/blob/main/README.md" target="_blank" rel="noopener">Documentation</a></li>
+                        <li><a href="https://hub.docker.com/r/knktc/tiny-requestbin" target="_blank" rel="noopener">Docker Hub</a></li>
+                        <li><a href="https://pkg.go.dev/github.com/knktc/tiny-requestbin" target="_blank" rel="noopener">Go Package</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Tiny RequestBin. Licensed under the MIT License.</p>
+                <p>Created with ❤️ using Go</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
