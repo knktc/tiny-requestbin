@@ -20,6 +20,9 @@ import (
 //go:embed templates/main.tmpl
 var templateFS embed.FS
 
+//go:embed site/*
+var siteFS embed.FS
+
 // RequestInfo structure is used to store the detailed information of captured HTTP requests.
 type RequestInfo struct {
 	ID         int
@@ -88,6 +91,7 @@ func main() {
 	fmt.Printf("Maximum requests to store: %d\n", maxRequests)
 	fmt.Printf("Send any HTTP request to http://%s:%d/some/path\n", *listen, *port)
 	fmt.Printf("View captured requests at http://%s:%d/\n", *listen, *port)
+	fmt.Printf("View project homepage at http://%s:%d/site/\n", *listen, *port)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
@@ -99,6 +103,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// Ignore requests for browser icons, directly return 204 No Content, so they won't be recorded.
 	if r.URL.Path == "/favicon.ico" {
 		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Serve static homepage and assets from /site path
+	if strings.HasPrefix(r.URL.Path, "/site") || r.URL.Path == "/home" {
+		serveStaticSite(w, r)
 		return
 	}
 
@@ -115,6 +125,43 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Otherwise, capture the request.
 	captureRequestHandler(w, r)
+}
+
+// serveStaticSite serves the static homepage and assets from the embedded site directory
+func serveStaticSite(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	
+	// Redirect /home to /site/
+	if path == "/home" {
+		http.Redirect(w, r, "/site/", http.StatusMovedPermanently)
+		return
+	}
+	
+	// Default to index.html for directory requests
+	if path == "/site" || path == "/site/" {
+		path = "/site/index.html"
+	}
+	
+	// Remove leading /site prefix for embedded filesystem
+	filePath := strings.TrimPrefix(path, "/")
+	
+	// Read file from embedded filesystem
+	content, err := siteFS.ReadFile(filePath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	
+	// Set appropriate content type
+	if strings.HasSuffix(filePath, ".html") {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	} else if strings.HasSuffix(filePath, ".css") {
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	} else if strings.HasSuffix(filePath, ".js") {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	}
+	
+	w.Write(content)
 }
 
 // PaginatedResponse represents a paginated API response

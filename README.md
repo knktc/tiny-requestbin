@@ -74,6 +74,15 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 3. View captured requests in your browser at `http://[listen-address]:[port]/`
 4. If CLI mode is enabled, requests will also be printed to the terminal
 
+### Project Homepage
+
+A static project introduction page is available at `http://[listen-address]:[port]/site/` (or `/home`). This page provides an overview of features, usage examples, and quick start instructions.
+
+You can also open the homepage directly from the filesystem:
+```bash
+open site/index.html
+```
+
 ## Docker Multi-Architecture Support
 
 The Docker image supports multiple architectures:
