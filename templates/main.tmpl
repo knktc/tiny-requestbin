@@ -14,6 +14,9 @@
                 'auto_refresh': 'Auto Refresh',
                 'seconds': 'seconds',
                 'refresh': 'Refresh',
+                'clear_requests': 'Clear',
+                'confirm': 'Confirm',
+                'clear_confirm': 'Clear all captured requests?',
                 'captured_requests': 'Captured Requests',
                 'no_requests': 'No requests captured yet.',
                 'welcome_title': 'Welcome!',
@@ -36,6 +39,9 @@
                 'auto_refresh': '自动刷新',
                 'seconds': '秒',
                 'refresh': '刷新',
+                'clear_requests': '清空',
+                'confirm': '确定',
+                'clear_confirm': '确定清空所有已捕获的请求？',
                 'captured_requests': '已捕获的请求',
                 'no_requests': '尚未捕获任何请求。',
                 'welcome_title': '欢迎！',
@@ -108,12 +114,6 @@
         </div>
         <div class="w-1/3 flex justify-end items-center pr-4">
             <div class="flex items-center space-x-2">
-                <button id="manualRefreshButton" class="hidden px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" data-i18n-title="refresh_requests">
-                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    <span data-i18n="refresh">刷新</span>
-                </button>
                 <input type="checkbox" id="autoRefreshCheckbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                 <label for="autoRefreshCheckbox" class="text-sm text-gray-600" data-i18n="auto_refresh">自动刷新</label>
                 <input type="number" id="refreshIntervalInput" class="w-16 text-sm border-gray-300 rounded-md shadow-sm" min="1" value="5">
@@ -125,8 +125,23 @@
     <div class="flex flex-1 overflow-hidden">
         <!-- Left Column: Request List -->
         <aside class="w-1/3 bg-white border-r flex flex-col">
-            <div class="p-4 border-b">
+            <div class="p-4 border-b flex items-center justify-between gap-3">
                 <h2 class="text-lg font-semibold" data-i18n="captured_requests">已捕获的请求</h2>
+                <div class="flex items-center gap-2">
+                    <button id="clearRequestsButton" class="px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path d="M8.5 2a1 1 0 00-1 1v1H4.75a.75.75 0 000 1.5h10.5a.75.75 0 000-1.5H12.5V3a1 1 0 00-1-1h-3z" />
+                            <path d="M6 7.25a.75.75 0 01.75-.75h6.5a.75.75 0 01.75.75v7.25a2 2 0 01-2 2h-4a2 2 0 01-2-2V7.25z" />
+                        </svg>
+                        <span data-i18n="clear_requests">清理</span>
+                    </button>
+                    <button id="listRefreshButton" class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span data-i18n="refresh">刷新</span>
+                    </button>
+                </div>
             </div>
             <div class="overflow-y-auto flex-1">
                 {{if .AllRequests}}
@@ -268,7 +283,8 @@
             // --- Auto-refresh logic ---
             const checkbox = document.getElementById('autoRefreshCheckbox');
             const intervalInput = document.getElementById('refreshIntervalInput');
-            const manualRefreshButton = document.getElementById('manualRefreshButton');
+            const clearRequestsButton = document.getElementById('clearRequestsButton');
+            const listRefreshButton = document.getElementById('listRefreshButton');
             let refreshInterval;
 
             // --- Pagination controls ---
@@ -292,13 +308,6 @@
                 refreshInterval = null;
             }
 
-            function toggleManualRefreshButton() {
-                if (checkbox.checked) {
-                    manualRefreshButton.classList.add('hidden');
-                } else {
-                    manualRefreshButton.classList.remove('hidden');
-                }
-            }
 
             // Function to update pagination info
             function updatePaginationInfo(data) {
@@ -430,36 +439,77 @@
                 toggleManualRefreshButton();
             });
 
-            // Manual refresh button click handler
-            let isRefreshing = false;
-            const originalButtonContent = `
-                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                <span data-i18n="refresh">${translations[currentLang]['refresh']}</span>
-            `;
-            
-            function resetButtonState() {
-                manualRefreshButton.innerHTML = originalButtonContent;
-                isRefreshing = false;
+
+            if (clearRequestsButton) {
+                let isConfirmingClear = false;
+                let clearConfirmTimer = null;
+                const clearOriginalClasses = clearRequestsButton.className;
+                const clearOriginalLabel = clearRequestsButton.innerHTML;
+
+                const resetClearButton = () => {
+                    isConfirmingClear = false;
+                    clearRequestsButton.className = clearOriginalClasses;
+                    clearRequestsButton.innerHTML = clearOriginalLabel;
+                    if (clearConfirmTimer) {
+                        clearTimeout(clearConfirmTimer);
+                        clearConfirmTimer = null;
+                    }
+                };
+
+                clearRequestsButton.addEventListener('click', async () => {
+                    if (clearRequestsButton.disabled) return;
+
+                    if (!isConfirmingClear) {
+                        isConfirmingClear = true;
+                        clearRequestsButton.className = 'px-3 py-1.5 text-xs font-semibold text-white bg-red-600 border border-red-600 rounded-md hover:bg-red-700 transition-colors flex items-center gap-1.5';
+                        clearRequestsButton.innerHTML = `
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 6.29a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0l-3.25-3.25a.75.75 0 111.06-1.06l2.72 2.72 6.72-6.72a.75.75 0 011.06 0z" clip-rule="evenodd" />
+                            </svg>
+                            <span data-i18n="confirm">${translations[currentLang]['confirm']}</span>
+                        `;
+                        clearConfirmTimer = setTimeout(resetClearButton, 2500);
+                        return;
+                    }
+
+                    clearRequestsButton.disabled = true;
+                    clearRequestsButton.classList.add('opacity-60', 'cursor-not-allowed');
+
+                    try {
+                        const response = await fetch('/api/requests/clear', { method: 'POST' });
+                        if (!response.ok) {
+                            throw new Error('clear_failed');
+                        }
+                        window.location.href = '/';
+                    } catch (error) {
+                        console.error('Error clearing requests:', error);
+                        clearRequestsButton.disabled = false;
+                        clearRequestsButton.classList.remove('opacity-60', 'cursor-not-allowed');
+                        resetClearButton();
+                    }
+                });
             }
-            
-            manualRefreshButton.addEventListener('click', () => {
-                if (isRefreshing) return; // Prevent multiple clicks
-                
-                isRefreshing = true;
-                updateRequestList();
-                
-                // Add visual feedback
-                manualRefreshButton.innerHTML = `
-                    <svg class="w-4 h-4 inline mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    <span data-i18n="refresh">${translations[currentLang]['refresh']}</span>
-                `;
-                
-                setTimeout(resetButtonState, 500);
-            });
+
+            if (listRefreshButton) {
+                listRefreshButton.addEventListener('click', () => {
+                    if (isUpdating) return;
+                    const refreshIcon = listRefreshButton.querySelector('svg');
+                    listRefreshButton.disabled = true;
+                    listRefreshButton.classList.add('opacity-70', 'cursor-not-allowed');
+                    if (refreshIcon) {
+                        refreshIcon.classList.add('animate-spin');
+                    }
+                    Promise.resolve(updateRequestList())
+                        .catch(() => {})
+                        .finally(() => {
+                            if (refreshIcon) {
+                                refreshIcon.classList.remove('animate-spin');
+                            }
+                            listRefreshButton.disabled = false;
+                            listRefreshButton.classList.remove('opacity-70', 'cursor-not-allowed');
+                        });
+                });
+            }
             
             intervalInput.addEventListener('change', () => {
                 let interval = parseInt(intervalInput.value, 10);
@@ -480,7 +530,6 @@
             if (isEnabled) {
                 startRefresh();
             }
-            toggleManualRefreshButton(); // Initialize manual refresh button visibility
 
             // Initialize pagination and request list
             updateRequestList();

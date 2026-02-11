@@ -108,6 +108,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Path == "/api/requests/clear" {
+		clearRequestsHandler(w, r)
+		return
+	}
+
 	// If it's the root path, display the main panel.
 	if r.URL.Path == "/" {
 		mainPageHandler(w, r)
@@ -212,6 +217,22 @@ func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to encode requests", http.StatusInternalServerError)
 		return
 	}
+}
+
+// clearRequestsHandler clears all captured requests.
+func clearRequestsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	mutex.Lock()
+	requestsStore = make(map[int]RequestInfo)
+	requestIDs = nil
+	mutex.Unlock()
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // captureRequestHandler captures the details of the incoming request and stores it.
