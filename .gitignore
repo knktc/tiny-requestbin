@@ -33,7 +33,10 @@ __debug_*
 .vscode/
 
 # Build output
-tiny-requestbin
+/tiny-requestbin
 
 # macos
 .DS_Store
+
+# ignore agents
+AGENTS.md

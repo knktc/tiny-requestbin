@@ -1,0 +1,58 @@
+# Default values for tiny-requestbin
+replicaCount: 1
+
+image:
+  repository: knktc/tiny-requestbin
+  tag: "latest"
+  pullPolicy: Always
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Application configuration (passed as CLI flags)
+config:
+  # Port for the server to listen on
+  port: 8282
+  # Address to listen on (must be 0.0.0.0 in Kubernetes)
+  listen: "0.0.0.0"
+  # Maximum number of requests to store in memory
+  max: 1000
+  # Print requests to stdout
+  cli: false
+
+service:
+  type: ClusterIP
+  port: 8282
+
+# HTTPRoute (Gateway API) configuration
+httpRoute:
+  enabled: false
+  # Parent gateway references
+  # parentRefs:
+  #   - name: my-gateway
+  #     namespace: default
+  parentRefs: []
+  # Hostnames for the HTTPRoute
+  # hostnames:
+  #   - requestbin.example.com
+  hostnames: []
+  # Additional annotations
+  annotations: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext:
+  readOnlyRootFilesystem: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

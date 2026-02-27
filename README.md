@@ -32,13 +32,33 @@ docker run -p 8282:8282 knktc/tiny-requestbin -port 8282 -listen 0.0.0.0 -max 10
 docker-compose up -d
 ```
 
-### Option 2: Install using `go install`
+### Option 2: Using Helm (Kubernetes)
+
+```bash
+# Install with default settings
+helm install my-requestbin helm/tiny-requestbin/
+
+# Install with custom options
+helm install my-requestbin helm/tiny-requestbin/ \
+  --set config.max=1000 \
+  --set service.type=NodePort
+
+# Enable HTTPRoute (Gateway API)
+helm install my-requestbin helm/tiny-requestbin/ \
+  --set httpRoute.enabled=true \
+  --set 'httpRoute.parentRefs[0].name=my-gateway' \
+  --set 'httpRoute.hostnames[0]=requestbin.example.com'
+```
+
+By default the chart deploys with image `knktc/tiny-requestbin:latest`, exposes port `8282` via a `ClusterIP` Service, and sets resource limits to `128Mi` memory / `500m` CPU.
+
+### Option 3: Install using `go install`
 
 ```bash
 go install github.com/knktc/tiny-requestbin@latest
 ```
 
-### Option 3: Build from source
+### Option 4: Build from source
 
 ```bash
 git clone https://github.com/knktc/tiny-requestbin.git
