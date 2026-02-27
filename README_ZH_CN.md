@@ -32,13 +32,33 @@ docker run -p 8282:8282 knktc/tiny-requestbin -port 8282 -listen 0.0.0.0
 docker-compose up -d
 ```
 
-### 方式二：使用 `go install` 安装
+### 方式二：使用 Helm 安装（Kubernetes）
+
+```bash
+# 使用默认配置安装
+helm install my-requestbin helm/tiny-requestbin/
+
+# 使用自定义选项安装
+helm install my-requestbin helm/tiny-requestbin/ \
+  --set config.max=1000 \
+  --set service.type=NodePort
+
+# 启用 HTTPRoute（Gateway API）
+helm install my-requestbin helm/tiny-requestbin/ \
+  --set httpRoute.enabled=true \
+  --set 'httpRoute.parentRefs[0].name=my-gateway' \
+  --set 'httpRoute.hostnames[0]=requestbin.example.com'
+```
+
+默认使用镜像 `knktc/tiny-requestbin:latest`，通过 `ClusterIP` 类型的 Service 暴露 `8282` 端口，资源限制为 `128Mi` 内存 / `500m` CPU。
+
+### 方式三：使用 `go install` 安装
 
 ```bash
 go install github.com/knktc/tiny-requestbin@latest
 ```
 
-### 方式三：从源码构建
+### 方式四：从源码构建
 
 ```bash
 git clone https://github.com/knktc/tiny-requestbin.git

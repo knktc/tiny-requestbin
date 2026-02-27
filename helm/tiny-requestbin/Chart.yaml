@@ -1,0 +1,16 @@
+apiVersion: v2
+name: tiny-requestbin
+description: A lightweight HTTP request inspector and debugging tool
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - requestbin
+  - http
+  - debugging
+  - inspector
+home: https://github.com/knktc/tiny-requestbin
+sources:
+  - https://github.com/knktc/tiny-requestbin
+maintainers:
+  - name: knktc
