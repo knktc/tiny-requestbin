@@ -36,6 +36,7 @@ type RequestInfo struct {
 type PageData struct {
 	AllRequests     []RequestInfo
 	SelectedRequest *RequestInfo // Using a pointer so that it can be nil when no request is selected
+	PathFilter      string
 }
 
 // Version information will be set during build
@@ -133,6 +134,11 @@ type PaginatedResponse struct {
 	HasPrev    bool          `json:"has_prev"`
 }
 
+// parsePathFilter extracts the path filter from request query parameters.
+func parsePathFilter(r *http.Request) string {
+	return strings.TrimSpace(r.URL.Query().Get("path"))
+}
+
 // parsePaginationParams extracts and validates pagination parameters from request
 func parsePaginationParams(r *http.Request) (page, limit int) {
 	page = 1
@@ -153,13 +159,28 @@ func parsePaginationParams(r *http.Request) (page, limit int) {
 	return page, limit
 }
 
+// getFilteredRequests returns requests in reverse chronological order and filters by path when provided.
+func getFilteredRequests(pathFilter string) []RequestInfo {
+	requests := make([]RequestInfo, 0, len(requestIDs))
+	for i := len(requestIDs) - 1; i >= 0; i-- {
+		id := requestIDs[i]
+		req := requestsStore[id]
+		if pathFilter != "" && !strings.Contains(req.Path, pathFilter) {
+			continue
+		}
+		requests = append(requests, req)
+	}
+
+	return requests
+}
+
 // getRequestsPage returns a paginated slice of requests
-func getRequestsPage(page, limit, total int) []RequestInfo {
+func getRequestsPage(requests []RequestInfo, page, limit int) []RequestInfo {
+	total := len(requests)
 	if total == 0 {
 		return make([]RequestInfo, 0)
 	}
 
-	// Calculate pagination
 	offset := (page - 1) * limit
 	start := offset
 	end := offset + limit
@@ -167,13 +188,7 @@ func getRequestsPage(page, limit, total int) []RequestInfo {
 		end = total
 	}
 
-	requests := make([]RequestInfo, end-start)
-	for i := start; i < end; i++ {
-		id := requestIDs[total-1-i] // Reverse order to show newest first
-		requests[i-start] = requestsStore[id]
-	}
-
-	return requests
+	return requests[start:end]
 }
 
 // apiRequestsHandler handles AJAX requests for getting the list of requests with pagination support
@@ -182,9 +197,11 @@ func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Parse pagination parameters
 	page, limit := parsePaginationParams(r)
+	pathFilter := parsePathFilter(r)
 
 	mutex.RLock()
-	total := len(requestIDs)
+	filteredRequests := getFilteredRequests(pathFilter)
+	total := len(filteredRequests)
 
 	// Calculate pagination
 	totalPages := (total + limit - 1) / limit // Ceiling division
@@ -198,7 +215,7 @@ func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get paginated requests
-	requests := getRequestsPage(page, limit, total)
+	requests := getRequestsPage(filteredRequests, page, limit)
 
 	mutex.RUnlock()
 
@@ -288,13 +305,8 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 // mainPageHandler prepares data and renders the main page with a left-right layout.
 func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 	mutex.RLock()
-	// Create a list of requests based on the ordered ID list.
-	// To have the newest requests shown at the top, we traverse the ID list in reverse order.
-	requests := make([]RequestInfo, len(requestIDs))
-	for i := 0; i < len(requestIDs); i++ {
-		id := requestIDs[len(requestIDs)-1-i]
-		requests[i] = requestsStore[id]
-	}
+	pathFilter := parsePathFilter(r)
+	requests := getFilteredRequests(pathFilter)
 	mutex.RUnlock()
 
 	var selectedReq *RequestInfo
@@ -322,6 +334,7 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 	pageData := PageData{
 		AllRequests:     requests,
 		SelectedRequest: selectedReq,
+		PathFilter:      pathFilter,
 	}
 
 	renderTemplate(w, "main", pageData)

@@ -15,10 +15,13 @@
                 'seconds': 'seconds',
                 'refresh': 'Refresh',
                 'clear_requests': 'Clear',
+                'search_path': 'Search path',
+                'search_path_placeholder': 'Filter by path, e.g. /api',
                 'confirm': 'Confirm',
                 'clear_confirm': 'Clear all captured requests?',
                 'captured_requests': 'Captured Requests',
                 'no_requests': 'No requests captured yet.',
+                'no_filtered_requests': 'No requests match the current path filter.',
                 'welcome_title': 'Welcome!',
                 'welcome_message': 'Please select a request from the list on the left to view details.',
                 'request_details': 'Request Details',
@@ -40,10 +43,13 @@
                 'seconds': '秒',
                 'refresh': '刷新',
                 'clear_requests': '清空',
+                'search_path': '搜索路径',
+                'search_path_placeholder': '按路径过滤，例如 /api',
                 'confirm': '确定',
                 'clear_confirm': '确定清空所有已捕获的请求？',
                 'captured_requests': '已捕获的请求',
                 'no_requests': '尚未捕获任何请求。',
+                'no_filtered_requests': '当前路径筛选下没有匹配的请求。',
                 'welcome_title': '欢迎！',
                 'welcome_message': '请从左侧列表中选择一个请求以查看其详细信息。',
                 'request_details': '请求详情',
@@ -89,6 +95,14 @@
                 const key = el.getAttribute('data-i18n');
                 if (translations[currentLang][key]) {
                     el.innerHTML = translations[currentLang][key];
+                }
+            });
+
+            const placeholderElements = document.querySelectorAll('[data-i18n-placeholder]');
+            placeholderElements.forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[currentLang][key]) {
+                    el.setAttribute('placeholder', translations[currentLang][key]);
                 }
             });
             
@@ -143,6 +157,17 @@
                     </button>
                 </div>
             </div>
+            <div class="p-4 border-b bg-gray-50">
+                <label for="pathSearchInput" class="mb-2 block text-sm font-medium text-gray-700" data-i18n="search_path">搜索路径</label>
+                <input
+                    id="pathSearchInput"
+                    type="search"
+                    value="{{.PathFilter}}"
+                    data-i18n-placeholder="search_path_placeholder"
+                    placeholder="按路径过滤，例如 /api"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+            </div>
             <div class="overflow-y-auto flex-1">
                 {{if .AllRequests}}
                 <ul class="divide-y" id="requestList">
@@ -163,11 +188,11 @@
                         </div>
                         <div class="text-xs text-gray-500">{{.Timestamp | formatTime}}</div>
                     </a>
-                    {{end}}
+                {{end}}
                 </ul>
                 {{else}}
                 <div class="p-6 text-center text-gray-500">
-                    <p data-i18n="no_requests">尚未捕获任何请求。</p>
+                    <p data-i18n="{{if .PathFilter}}no_filtered_requests{{else}}no_requests{{end}}">{{if .PathFilter}}当前路径筛选下没有匹配的请求。{{else}}尚未捕获任何请求。{{end}}</p>
                 </div>
                 {{end}}
             </div>
@@ -285,13 +310,21 @@
             const intervalInput = document.getElementById('refreshIntervalInput');
             const clearRequestsButton = document.getElementById('clearRequestsButton');
             const listRefreshButton = document.getElementById('listRefreshButton');
+            const pathSearchInput = document.getElementById('pathSearchInput');
+            const requestList = document.querySelector('aside .overflow-y-auto');
             let refreshInterval;
+            let searchDebounceTimer;
+            let currentPathFilter = new URLSearchParams(window.location.search).get('path') || '';
 
             // --- Pagination controls ---
             const prevPageBtn = document.getElementById('prevPageBtn');
             const nextPageBtn = document.getElementById('nextPageBtn');
             const paginationInfo = document.getElementById('paginationInfo');
             const paginationControls = document.getElementById('paginationControls');
+
+            if (pathSearchInput) {
+                pathSearchInput.value = currentPathFilter;
+            }
 
             function startRefresh() {
                 if (refreshInterval) clearInterval(refreshInterval);
@@ -306,6 +339,30 @@
             function stopRefresh() {
                 clearInterval(refreshInterval);
                 refreshInterval = null;
+            }
+
+            function syncUrlParams({ page = currentPage, path = currentPathFilter, viewId } = {}) {
+                const url = new URL(window.location);
+
+                if (path) {
+                    url.searchParams.set('path', path);
+                } else {
+                    url.searchParams.delete('path');
+                }
+
+                if (page > 1) {
+                    url.searchParams.set('page', page);
+                } else {
+                    url.searchParams.delete('page');
+                }
+
+                if (viewId) {
+                    url.searchParams.set('view_id', viewId);
+                } else if (viewId === null) {
+                    url.searchParams.delete('view_id');
+                }
+
+                window.history.replaceState({}, '', url);
             }
 
 
@@ -332,14 +389,22 @@
             function updateRequestList(page = currentPage) {
                 if (isUpdating) return;
                 isUpdating = true;
+                const params = new URLSearchParams({
+                    page: String(page),
+                    limit: '20'
+                });
+
+                if (currentPathFilter) {
+                    params.set('path', currentPathFilter);
+                }
                 
-                return fetch(`/api/requests?page=${page}&limit=20`)
+                return fetch(`/api/requests?${params.toString()}`)
                     .then(response => response.json())
                     .then(data => {
-                        const requestList = document.querySelector('aside .overflow-y-auto');
                         const currentViewId = new URLSearchParams(window.location.search).get('view_id');
                         
                         updatePaginationInfo(data);
+                        syncUrlParams({ page: data.page, path: currentPathFilter });
                         
                         if (data.requests && data.requests.length > 0) {
                             const ul = document.createElement('ul');
@@ -376,9 +441,10 @@
                             requestList.innerHTML = '';
                             requestList.appendChild(ul);
                         } else {
+                            const emptyMessageKey = currentPathFilter ? 'no_filtered_requests' : 'no_requests';
                             requestList.innerHTML = `
                                 <div class="p-6 text-center text-gray-500">
-                                    <p data-i18n="no_requests">${translations[currentLang]['no_requests']}</p>
+                                    <p data-i18n="${emptyMessageKey}">${translations[currentLang][emptyMessageKey]}</p>
                                 </div>
                             `;
                         }
@@ -490,6 +556,22 @@
                 });
             }
 
+            if (pathSearchInput) {
+                pathSearchInput.addEventListener('input', () => {
+                    currentPathFilter = pathSearchInput.value.trim();
+                    currentPage = 1;
+
+                    if (searchDebounceTimer) {
+                        clearTimeout(searchDebounceTimer);
+                    }
+
+                    syncUrlParams({ page: 1, path: currentPathFilter, viewId: null });
+                    searchDebounceTimer = setTimeout(() => {
+                        updateRequestList(1);
+                    }, 300);
+                });
+            }
+
             if (listRefreshButton) {
                 listRefreshButton.addEventListener('click', () => {
                     if (isUpdating) return;
@@ -527,6 +609,10 @@
             intervalInput.value = savedInterval;
             const isEnabled = localStorage.getItem('autoRefreshEnabled') !== 'false';
             checkbox.checked = isEnabled;
+            const initialPage = parseInt(new URLSearchParams(window.location.search).get('page') || '1', 10);
+            if (!Number.isNaN(initialPage) && initialPage > 0) {
+                currentPage = initialPage;
+            }
             if (isEnabled) {
                 startRefresh();
             }
@@ -556,9 +642,20 @@
 
             // Function to load request details via AJAX
             function loadRequestDetails(requestId) {
-                // You can implement this to load request details via AJAX
-                // For now, just reload the page
-                window.location.href = `/?view_id=${requestId}`;
+                const newUrl = new URL(window.location);
+                newUrl.pathname = '/';
+                newUrl.searchParams.set('view_id', requestId);
+                if (currentPathFilter) {
+                    newUrl.searchParams.set('path', currentPathFilter);
+                } else {
+                    newUrl.searchParams.delete('path');
+                }
+                if (currentPage > 1) {
+                    newUrl.searchParams.set('page', currentPage);
+                } else {
+                    newUrl.searchParams.delete('page');
+                }
+                window.location.href = newUrl.toString();
             }
 
             // --- Collapsible sections logic ---
