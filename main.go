@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-//go:embed templates/main.tmpl
+//go:embed templates/main.tmpl assets/favicon.svg
 var templateFS embed.FS
 
 // RequestInfo structure is used to store the detailed information of captured HTTP requests.
@@ -97,9 +97,9 @@ func main() {
 // handler is the central router for all incoming requests.
 // It decides whether to capture the request or display the main panel based on the URL path.
 func handler(w http.ResponseWriter, r *http.Request) {
-	// Ignore requests for browser icons, directly return 204 No Content, so they won't be recorded.
-	if r.URL.Path == "/favicon.ico" {
-		w.WriteHeader(http.StatusNoContent)
+	// Serve the embedded favicon and keep it out of the capture list.
+	if r.URL.Path == "/favicon.ico" || r.URL.Path == "/favicon.svg" {
+		faviconHandler(w)
 		return
 	}
 
@@ -121,6 +121,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Otherwise, capture the request.
 	captureRequestHandler(w, r)
+}
+
+// faviconHandler serves the embedded favicon asset.
+func faviconHandler(w http.ResponseWriter) {
+	faviconContent, err := templateFS.ReadFile("assets/favicon.svg")
+	if err != nil {
+		http.Error(w, InternalServerError, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(faviconContent)
 }
 
 // PaginatedResponse represents a paginated API response
