@@ -14,6 +14,9 @@
                 'title': 'Tiny RequestBin',
                 'subtitle_prefix': 'Send requests to',
                 'auto_refresh': 'Auto Refresh',
+                'auto_refresh_active': 'Live',
+                'auto_refresh_inactive': 'Auto Off',
+                'refresh_once': 'Refresh',
                 'seconds': 'seconds',
                 'refresh': 'Refresh',
                 'clear_requests': 'Clear',
@@ -45,6 +48,9 @@
                 'title': 'Tiny RequestBin',
                 'subtitle_prefix': '发送请求到',
                 'auto_refresh': '自动刷新',
+                'auto_refresh_active': '自动刷新中',
+                'auto_refresh_inactive': '自动刷新关闭',
+                'refresh_once': '刷新',
                 'seconds': '秒',
                 'refresh': '刷新',
                 'clear_requests': '清空',
@@ -178,14 +184,7 @@
                 </button>
             </div>
         </div>
-        <div class="w-1/3 flex justify-end items-center pr-4">
-            <div class="flex items-center space-x-2">
-                <input type="checkbox" id="autoRefreshCheckbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                <label for="autoRefreshCheckbox" class="text-sm text-gray-600" data-i18n="auto_refresh">自动刷新</label>
-                <input type="number" id="refreshIntervalInput" class="w-16 text-sm border-gray-300 rounded-md shadow-sm" min="1" value="5">
-                <label for="refreshIntervalInput" class="text-sm text-gray-600" data-i18n="seconds">秒</label>
-            </div>
-        </div>
+        <div class="w-1/3"></div>
     </header>
 
     <div class="flex flex-1 overflow-hidden">
@@ -194,18 +193,29 @@
             <div class="p-4 border-b flex items-center justify-between gap-3">
                 <h2 class="text-lg font-semibold" data-i18n="captured_requests">已捕获的请求</h2>
                 <div class="flex items-center gap-2">
+                    <div id="refreshControlGroup" class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 overflow-hidden">
+                        <button id="autoRefreshToggleButton" class="inline-flex items-center gap-2 px-2.5 py-1.5 transition-colors hover:bg-slate-100">
+                            <span id="autoRefreshStatusDot" class="h-2 w-2 rounded-full bg-slate-400"></span>
+                            <span id="autoRefreshButtonLabel" data-i18n="auto_refresh_inactive">自动刷新</span>
+                        </button>
+                        <div class="h-4 w-px bg-slate-200"></div>
+                        <label for="refreshIntervalInput" class="sr-only" data-i18n="seconds">秒</label>
+                        <div class="inline-flex items-center gap-1 px-2 py-1.5 text-slate-600">
+                            <input type="number" id="refreshIntervalInput" class="w-8 border-0 bg-transparent p-0 text-center text-xs font-semibold text-inherit focus:outline-none focus:ring-0" min="1" value="5">
+                            <span data-i18n="seconds">秒</span>
+                        </div>
+                    </div>
+                    <button id="listRefreshButton" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700" title="Refresh" aria-label="Refresh">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
                     <button id="clearRequestsButton" class="px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                             <path d="M8.5 2a1 1 0 00-1 1v1H4.75a.75.75 0 000 1.5h10.5a.75.75 0 000-1.5H12.5V3a1 1 0 00-1-1h-3z" />
                             <path d="M6 7.25a.75.75 0 01.75-.75h6.5a.75.75 0 01.75.75v7.25a2 2 0 01-2 2h-4a2 2 0 01-2-2V7.25z" />
                         </svg>
                         <span data-i18n="clear_requests">清理</span>
-                    </button>
-                    <button id="listRefreshButton" class="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1.5">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                        </svg>
-                        <span data-i18n="refresh">刷新</span>
                     </button>
                 </div>
             </div>
@@ -270,92 +280,91 @@
         <main class="w-2/3 overflow-y-auto p-4 md:p-8">
             {{if .SelectedRequest}}
             <div class="bg-white rounded-lg shadow-md mb-6">
-                <div class="p-6 border-b">
-                    <h2 class="text-xl font-semibold"><span data-i18n="request_details">请求详情</span> #{{.SelectedRequest.ID}}</h2>
-                </div>
-                <div class="p-6">
-                     <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-                        <div class="sm:col-span-1">
-                            <dt class="text-sm font-medium text-gray-500" data-i18n="time">时间</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{.SelectedRequest.Timestamp | formatTime}}</dd>
-                        </div>
-                        <div class="sm:col-span-1">
-                            <dt class="text-sm font-medium text-gray-500" data-i18n="method">方法</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{.SelectedRequest.Method}}</dd>
-                        </div>
-                         <div class="sm:col-span-2">
-                            <dt class="text-sm font-medium text-gray-500" data-i18n="path">路径</dt>
-                            <dd class="mt-1 text-sm text-gray-900 font-mono break-all">{{if .SelectedRequest.RequestURI}}{{.SelectedRequest.RequestURI}}{{else}}{{.SelectedRequest.Path}}{{end}}</dd>
-                        </div>
-                        <div class="sm:col-span-1">
-                            <dt class="text-sm font-medium text-gray-500" data-i18n="protocol">协议</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{{.SelectedRequest.Proto}}</dd>
-                        </div>
-                        <div class="sm:col-span-1">
-                            <dt class="text-sm font-medium text-gray-500" data-i18n="source_ip">源 IP</dt>
-                            <dd class="mt-1 text-sm text-gray-900 font-mono">{{.SelectedRequest.RemoteAddr}}</dd>
-                        </div>
-                    </dl>
+                <div class="p-5 md:p-6">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h2 class="text-xl font-semibold text-gray-900"><span data-i18n="request_details">请求详情</span> #{{.SelectedRequest.ID}}</h2>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
+                            {{if eq .SelectedRequest.Method "GET"}} bg-green-100 text-green-800
+                            {{else if eq .SelectedRequest.Method "POST"}} bg-blue-100 text-blue-800
+                            {{else if eq .SelectedRequest.Method "PUT"}} bg-yellow-100 text-yellow-800
+                            {{else if eq .SelectedRequest.Method "DELETE"}} bg-red-100 text-red-800
+                            {{else}} bg-gray-100 text-gray-800 {{end}}">
+                            {{.SelectedRequest.Method}}
+                        </span>
+                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{.SelectedRequest.Proto}}</span>
+                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 font-mono">{{.SelectedRequest.RemoteAddr}}</span>
+                        <span class="text-sm text-gray-500">{{.SelectedRequest.Timestamp | formatTime}}</span>
+                    </div>
+                    <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500" data-i18n="path">路径</div>
+                        <div class="mt-1 break-all font-mono text-sm text-slate-900">{{if .SelectedRequest.RequestURI}}{{.SelectedRequest.RequestURI}}{{else}}{{.SelectedRequest.Path}}{{end}}</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md mb-6">
-                <div id="headers-toggle" class="p-6 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                    <h2 class="text-xl font-semibold" data-i18n="headers">标头 (Headers)</h2>
-                    <svg id="headers-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                </div>
-                <div id="headers-content" class="p-6 overflow-x-auto transition-all duration-300">
-                    <dl>
-                        {{range $key, $values := .SelectedRequest.Headers}}
-                            <div class="py-2 sm:grid sm:grid-cols-4 sm:gap-4">
-                                <dt class="text-sm font-medium text-gray-500 break-all">{{$key}}</dt>
-                                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-3 font-mono break-all">{{range $values}}{{.}}{{end}}</dd>
-                            </div>
-                        {{end}}
-                    </dl>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md mb-6">
-                <div id="query-toggle" class="p-6 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                    <h2 class="text-xl font-semibold" data-i18n="query_parameters">查询参数</h2>
-                    <svg id="query-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                </div>
-                <div id="query-content" class="p-6 overflow-x-auto transition-all duration-300" data-has-content="{{if .SelectedRequest.QueryParams}}true{{else}}false{{end}}">
-                    {{if .SelectedRequest.QueryParams}}
-                    <dl>
-                        {{range $key, $values := .SelectedRequest.QueryParams}}
-                            <div class="py-2 sm:grid sm:grid-cols-4 sm:gap-4">
-                                <dt class="text-sm font-medium text-gray-500 break-all">{{$key}}</dt>
-                                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-3 font-mono break-all">{{range $index, $value := $values}}{{if $index}}, {{end}}{{$value}}{{end}}</dd>
-                            </div>
-                        {{end}}
-                    </dl>
-                    {{else}}
-                    <p class="text-gray-500" data-i18n="no_query_parameters">没有查询参数。</p>
-                    {{end}}
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md">
-                <div id="body-toggle" class="p-6 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                    <h2 class="text-xl font-semibold" data-i18n="body">正文 (Body)</h2>
-                    <svg id="body-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                </div>
-                <div id="body-content" class="p-6 transition-all duration-300 relative">
-                    {{if .SelectedRequest.Body}}
-                        <div class="relative">
-                            <pre id="body-text" class="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto"><code>{{prettyPrintJson .SelectedRequest.Body}}</code></pre>
-                            <button id="copy-body-btn" class="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md text-xs transition-colors duration-200 flex items-center gap-1" title="复制正文内容">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                <span data-i18n="copy">复制</span>
-                            </button>
+            <div class="grid gap-6 xl:grid-cols-5">
+                <div class="space-y-6 xl:col-span-2">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div id="headers-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <h2 class="text-lg font-semibold" data-i18n="headers">标头 (Headers)</h2>
+                            <svg id="headers-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                         </div>
-                    {{else}}
-                        <p class="text-gray-500" data-i18n="no_body">该请求没有正文。</p>
-                    {{end}}
+                        <div id="headers-content" class="px-5 py-4 overflow-auto transition-all duration-300 max-h-72">
+                            <dl class="space-y-3">
+                                {{range $key, $values := .SelectedRequest.Headers}}
+                                    <div class="rounded-lg bg-slate-50 px-3 py-2">
+                                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 break-all">{{$key}}</dt>
+                                        <dd class="mt-1 text-sm text-slate-900 font-mono break-all">{{range $values}}{{.}}{{end}}</dd>
+                                    </div>
+                                {{end}}
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div id="query-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <h2 class="text-lg font-semibold" data-i18n="query_parameters">查询参数</h2>
+                            <svg id="query-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <div id="query-content" class="px-5 py-4 overflow-auto transition-all duration-300 max-h-72" data-has-content="{{if .SelectedRequest.QueryParams}}true{{else}}false{{end}}">
+                            {{if .SelectedRequest.QueryParams}}
+                            <dl class="space-y-3">
+                                {{range $key, $values := .SelectedRequest.QueryParams}}
+                                    <div class="rounded-lg bg-slate-50 px-3 py-2">
+                                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 break-all">{{$key}}</dt>
+                                        <dd class="mt-1 text-sm text-slate-900 font-mono break-all">{{range $index, $value := $values}}{{if $index}}, {{end}}{{$value}}{{end}}</dd>
+                                    </div>
+                                {{end}}
+                            </dl>
+                            {{else}}
+                            <p class="text-sm text-gray-500" data-i18n="no_query_parameters">没有查询参数。</p>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="xl:col-span-3">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div id="body-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <h2 class="text-lg font-semibold" data-i18n="body">正文 (Body)</h2>
+                            <svg id="body-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <div id="body-content" class="p-5 transition-all duration-300 relative">
+                            {{if .SelectedRequest.Body}}
+                                <div class="relative">
+                                    <pre id="body-text" class="max-h-[60vh] overflow-auto rounded-xl bg-gray-900 p-4 text-sm text-white shadow-inner"><code>{{prettyPrintJson .SelectedRequest.Body}}</code></pre>
+                                    <button id="copy-body-btn" class="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md text-xs transition-colors duration-200 flex items-center gap-1" title="复制正文内容">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <span data-i18n="copy">复制</span>
+                                    </button>
+                                </div>
+                            {{else}}
+                                <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-gray-500" data-i18n="no_body">该请求没有正文。</div>
+                            {{end}}
+                        </div>
+                    </div>
                 </div>
             </div>
             {{else}}
@@ -379,7 +388,10 @@
             let isUpdating = false;
             
             // --- Auto-refresh logic ---
-            const checkbox = document.getElementById('autoRefreshCheckbox');
+            const autoRefreshToggleButton = document.getElementById('autoRefreshToggleButton');
+            const autoRefreshButtonLabel = document.getElementById('autoRefreshButtonLabel');
+            const autoRefreshStatusDot = document.getElementById('autoRefreshStatusDot');
+            const refreshControlGroup = document.getElementById('refreshControlGroup');
             const intervalInput = document.getElementById('refreshIntervalInput');
             const clearRequestsButton = document.getElementById('clearRequestsButton');
             const listRefreshButton = document.getElementById('listRefreshButton');
@@ -388,6 +400,7 @@
             let refreshInterval;
             let searchDebounceTimer;
             let currentPathFilter = new URLSearchParams(window.location.search).get('path') || '';
+            let isAutoRefreshEnabled = true;
 
             // --- Pagination controls ---
             const prevPageBtn = document.getElementById('prevPageBtn');
@@ -412,6 +425,26 @@
             function stopRefresh() {
                 clearInterval(refreshInterval);
                 refreshInterval = null;
+            }
+
+            function updateRefreshControls() {
+                if (!autoRefreshToggleButton || !autoRefreshButtonLabel || !autoRefreshStatusDot || !refreshControlGroup || !listRefreshButton) {
+                    return;
+                }
+
+                if (isAutoRefreshEnabled) {
+                    refreshControlGroup.className = 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 overflow-hidden';
+                    autoRefreshToggleButton.className = 'inline-flex items-center gap-2 px-2.5 py-1.5 transition-colors hover:bg-emerald-100';
+                    autoRefreshButtonLabel.textContent = translations[currentLang]['auto_refresh_active'];
+                    autoRefreshStatusDot.className = 'h-2 w-2 rounded-full bg-emerald-500';
+                    listRefreshButton.classList.add('hidden');
+                } else {
+                    refreshControlGroup.className = 'inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 overflow-hidden';
+                    autoRefreshToggleButton.className = 'inline-flex items-center gap-2 px-2.5 py-1.5 transition-colors hover:bg-slate-100';
+                    autoRefreshButtonLabel.textContent = translations[currentLang]['auto_refresh_inactive'];
+                    autoRefreshStatusDot.className = 'h-2 w-2 rounded-full bg-slate-400';
+                    listRefreshButton.classList.remove('hidden');
+                }
             }
 
             function syncUrlParams({ page = currentPage, path = currentPathFilter, viewId } = {}) {
@@ -566,16 +599,17 @@
                 }
             });
 
-            checkbox.addEventListener('change', () => {
+            autoRefreshToggleButton.addEventListener('click', () => {
                 localStorage.setItem('autoRefreshInterval', intervalInput.value);
-                if (checkbox.checked) {
+                isAutoRefreshEnabled = !isAutoRefreshEnabled;
+                if (isAutoRefreshEnabled) {
                     localStorage.setItem('autoRefreshEnabled', 'true');
                     startRefresh();
                 } else {
                     localStorage.setItem('autoRefreshEnabled', 'false');
                     stopRefresh();
                 }
-                toggleManualRefreshButton();
+                updateRefreshControls();
             });
 
 
@@ -672,7 +706,7 @@
                     intervalInput.value = '5'; // 重置为默认值
                 }
                 localStorage.setItem('autoRefreshInterval', intervalInput.value);
-                if (checkbox.checked) {
+                if (isAutoRefreshEnabled) {
                     startRefresh(); // 如果已启用，则使用新间隔重新启动
                 }
             });
@@ -680,15 +714,15 @@
             // 页面加载时恢复设置
             const savedInterval = localStorage.getItem('autoRefreshInterval') || '5';
             intervalInput.value = savedInterval;
-            const isEnabled = localStorage.getItem('autoRefreshEnabled') !== 'false';
-            checkbox.checked = isEnabled;
+            isAutoRefreshEnabled = localStorage.getItem('autoRefreshEnabled') !== 'false';
             const initialPage = parseInt(new URLSearchParams(window.location.search).get('page') || '1', 10);
             if (!Number.isNaN(initialPage) && initialPage > 0) {
                 currentPage = initialPage;
             }
-            if (isEnabled) {
+            if (isAutoRefreshEnabled) {
                 startRefresh();
             }
+            updateRefreshControls();
 
             // Initialize pagination and request list
             updateRequestList();
