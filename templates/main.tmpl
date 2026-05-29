@@ -32,6 +32,8 @@
                 'path': 'Path',
                 'protocol': 'Protocol',
                 'source_ip': 'Source IP',
+                'query_parameters': 'Query Parameters',
+                'no_query_parameters': 'No query parameters.',
                 'headers': 'Headers',
                 'body': 'Body',
                 'no_body': 'This request has no body.',
@@ -61,6 +63,8 @@
                 'path': '路径',
                 'protocol': '协议',
                 'source_ip': '源 IP',
+                'query_parameters': '查询参数',
+                'no_query_parameters': '没有查询参数。',
                 'headers': '标头 (Headers)',
                 'body': '正文 (Body)',
                 'no_body': '该请求没有正文。',
@@ -231,7 +235,7 @@
                                     {{else}} bg-gray-100 text-gray-800 {{end}}">
                                     {{.Method}}
                                 </span>
-                                <span class="font-mono">{{.Path}}</span>
+                                <span class="font-mono">{{if .RequestURI}}{{.RequestURI}}{{else}}{{.Path}}{{end}}</span>
                             </div>
                         </div>
                         <div class="text-xs text-gray-500">{{.Timestamp | formatTime}}</div>
@@ -281,7 +285,7 @@
                         </div>
                          <div class="sm:col-span-2">
                             <dt class="text-sm font-medium text-gray-500" data-i18n="path">路径</dt>
-                            <dd class="mt-1 text-sm text-gray-900 font-mono">{{.SelectedRequest.Path}}</dd>
+                            <dd class="mt-1 text-sm text-gray-900 font-mono break-all">{{if .SelectedRequest.RequestURI}}{{.SelectedRequest.RequestURI}}{{else}}{{.SelectedRequest.Path}}{{end}}</dd>
                         </div>
                         <div class="sm:col-span-1">
                             <dt class="text-sm font-medium text-gray-500" data-i18n="protocol">协议</dt>
@@ -309,6 +313,27 @@
                             </div>
                         {{end}}
                     </dl>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div id="query-toggle" class="p-6 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                    <h2 class="text-xl font-semibold" data-i18n="query_parameters">查询参数</h2>
+                    <svg id="query-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                </div>
+                <div id="query-content" class="p-6 overflow-x-auto transition-all duration-300" data-has-content="{{if .SelectedRequest.QueryParams}}true{{else}}false{{end}}">
+                    {{if .SelectedRequest.QueryParams}}
+                    <dl>
+                        {{range $key, $values := .SelectedRequest.QueryParams}}
+                            <div class="py-2 sm:grid sm:grid-cols-4 sm:gap-4">
+                                <dt class="text-sm font-medium text-gray-500 break-all">{{$key}}</dt>
+                                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-3 font-mono break-all">{{range $index, $value := $values}}{{if $index}}, {{end}}{{$value}}{{end}}</dd>
+                            </div>
+                        {{end}}
+                    </dl>
+                    {{else}}
+                    <p class="text-gray-500" data-i18n="no_query_parameters">没有查询参数。</p>
+                    {{end}}
                 </div>
             </div>
 
@@ -474,7 +499,7 @@
                                             <span class="px-2 mr-2 text-xs leading-5 font-semibold rounded-full ${methodColor}">
                                                 ${request.Method}
                                             </span>
-                                            <span class="font-mono">${request.Path}</span>
+                                            <span class="font-mono">${request.RequestURI || request.Path}</span>
                                         </div>
                                     </div>
                                     <div class="text-xs text-gray-500">${timestamp}</div>
@@ -707,7 +732,7 @@
             }
 
             // --- Collapsible sections logic ---
-            const sections = ['headers', 'body'];
+            const sections = ['headers', 'query', 'body'];
 
             sections.forEach(section => {
                 const toggle = document.getElementById(section + '-toggle');
@@ -723,7 +748,7 @@
                         content.classList.remove('hidden');
                         chevron.classList.remove('rotate-180');
                     }
-                    if (!isInitial) {
+                    if (!isInitial && section !== 'query') {
                          localStorage.setItem(storageKey, isCollapsed);
                     }
                 };
@@ -736,7 +761,13 @@
                 }
                
                 if (content) {
-                    const initiallyCollapsed = localStorage.getItem(storageKey) === 'true';
+                    let initiallyCollapsed;
+                    if (section === 'query') {
+                        initiallyCollapsed = content.dataset.hasContent === 'false';
+                    } else {
+                        const savedCollapsed = localStorage.getItem(storageKey);
+                        initiallyCollapsed = savedCollapsed === 'true';
+                    }
                     setCollapsedState(initiallyCollapsed, true);
                 }
             });

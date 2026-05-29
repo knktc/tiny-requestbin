@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -25,6 +26,8 @@ type RequestInfo struct {
 	ID         int
 	Method     string
 	Path       string
+	RequestURI string
+	QueryParams url.Values
 	Proto      string
 	Headers    http.Header
 	Body       string
@@ -286,6 +289,8 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 		ID:         id,
 		Method:     r.Method,
 		Path:       r.URL.Path,
+		RequestURI: r.URL.RequestURI(),
+		QueryParams: cloneValues(r.URL.Query()),
 		Proto:      r.Proto,
 		Headers:    r.Header,
 		Body:       string(bodyBytes),
@@ -407,7 +412,11 @@ func printRequestToCLI(reqInfo RequestInfo) {
 	fmt.Printf("%s\n", strings.Repeat("-", 80))
 
 	// Request line
-	fmt.Printf("🔹 %s %s %s\n", reqInfo.Method, reqInfo.Path, reqInfo.Proto)
+	requestTarget := reqInfo.RequestURI
+	if requestTarget == "" {
+		requestTarget = reqInfo.Path
+	}
+	fmt.Printf("🔹 %s %s %s\n", reqInfo.Method, requestTarget, reqInfo.Proto)
 	fmt.Printf("🔹 Remote Address: %s\n", reqInfo.RemoteAddr)
 
 	// Headers
@@ -442,4 +451,20 @@ func printRequestToCLI(reqInfo RequestInfo) {
 
 	// Force flush stdout to ensure immediate output
 	os.Stdout.Sync()
+}
+
+// cloneValues returns a copy of url.Values so captured query params remain stable.
+func cloneValues(values url.Values) url.Values {
+	if len(values) == 0 {
+		return nil
+	}
+
+	cloned := make(url.Values, len(values))
+	for key, list := range values {
+		copied := make([]string, len(list))
+		copy(copied, list)
+		cloned[key] = copied
+	}
+
+	return cloned
 }
