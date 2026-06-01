@@ -175,7 +175,7 @@
             <h1 class="text-2xl font-bold text-gray-900" data-i18n="title">Tiny RequestBin</h1>
             <div id="subtitle" class="mt-1 flex items-center justify-center gap-2 text-sm text-gray-600">
                 <p class="min-w-0">
-                    <span id="subtitle-prefix">Send requests to </span><span id="subtitle-url" class="font-mono">http://127.0.0.1:8282/your-path</span>
+                    <span id="subtitle-prefix">Send requests to </span><span id="subtitle-url" class="font-mono">{{.BaseURL}}/your-path</span>
                 </p>
                 <button id="copy-subtitle-btn" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-200" title="Copy example URL" aria-label="Copy example URL">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

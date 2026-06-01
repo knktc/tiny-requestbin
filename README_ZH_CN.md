@@ -80,6 +80,8 @@ tiny-requestbin
 - `-listen`：服务器监听的地址（默认：127.0.0.1）
 - `-max`：最大存储的请求数量（默认：100）
 - `-cli`：启用 CLI 模式，在终端打印请求（默认：false）
+- `-tls-cert`：TLS 证书文件路径（需与 `-tls-key` 一起使用以启用 HTTPS）
+- `-tls-key`：TLS 私钥文件路径（需与 `-tls-cert` 一起使用以启用 HTTPS）
 
 自定义选项示例：
 
@@ -87,11 +89,41 @@ tiny-requestbin
 tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 ```
 
+使用 HTTPS 启动：
+
+```bash
+tiny-requestbin -port 9443 -listen 127.0.0.1 \
+  -tls-cert ./certs/localhost.pem \
+  -tls-key ./certs/localhost-key.pem
+```
+
+使用 `mkcert` 生成本地证书：
+
+```bash
+mkdir -p certs
+mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+tiny-requestbin -port 9443 -listen 127.0.0.1 \
+  -tls-cert ./certs/localhost.pem \
+  -tls-key ./certs/localhost-key.pem
+```
+
+如果希望浏览器直接信任该证书，可额外执行：
+
+```bash
+mkcert -install
+```
+
+如果不想修改系统信任库，也可以这样验证：
+
+```bash
+curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://127.0.0.1:9443/
+```
+
 ## 工作原理
 
 1. 使用上述方法之一启动服务器
-2. 向 `http://[监听地址]:[端口]/任意/路径` 发送 HTTP 请求
-3. 在浏览器中访问 `http://[监听地址]:[端口]/` 查看捕获的请求
+2. 向 `http[s]://[监听地址]:[端口]/任意/路径` 发送 HTTP 或 HTTPS 请求
+3. 在浏览器中访问 `http[s]://[监听地址]:[端口]/` 查看捕获的请求
 4. 如果启用了 CLI 模式，请求也会打印到终端
 
 ## Docker 多架构支持

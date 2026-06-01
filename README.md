@@ -80,6 +80,8 @@ tiny-requestbin
 - `-listen`: Address to listen on (default: 127.0.0.1)
 - `-max`: Maximum number of requests to store (default: 100)
 - `-cli`: Enable CLI mode to print requests to terminal (default: false)
+- `-tls-cert`: Path to the TLS certificate file (enables HTTPS when used with `-tls-key`)
+- `-tls-key`: Path to the TLS private key file (enables HTTPS when used with `-tls-cert`)
 
 Example with custom options:
 
@@ -87,11 +89,41 @@ Example with custom options:
 tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 ```
 
+Run with HTTPS:
+
+```bash
+tiny-requestbin -port 9443 -listen 127.0.0.1 \
+  -tls-cert ./certs/localhost.pem \
+  -tls-key ./certs/localhost-key.pem
+```
+
+Generate a local certificate with `mkcert`:
+
+```bash
+mkdir -p certs
+mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
+tiny-requestbin -port 9443 -listen 127.0.0.1 \
+  -tls-cert ./certs/localhost.pem \
+  -tls-key ./certs/localhost-key.pem
+```
+
+Optionally trust the local CA in your system keychain for browser-friendly testing:
+
+```bash
+mkcert -install
+```
+
+Or verify without changing the system trust store:
+
+```bash
+curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://127.0.0.1:9443/
+```
+
 ## How It Works
 
 1. Start the server using one of the methods above
-2. Send HTTP requests to `http://[listen-address]:[port]/any/path`
-3. View captured requests in your browser at `http://[listen-address]:[port]/`
+2. Send HTTP or HTTPS requests to `http[s]://[listen-address]:[port]/any/path`
+3. View captured requests in your browser at `http[s]://[listen-address]:[port]/`
 4. If CLI mode is enabled, requests will also be printed to the terminal
 
 ## Docker Multi-Architecture Support

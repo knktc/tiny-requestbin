@@ -23,16 +23,16 @@ var templateFS embed.FS
 
 // RequestInfo structure is used to store the detailed information of captured HTTP requests.
 type RequestInfo struct {
-	ID         int
-	Method     string
-	Path       string
-	RequestURI string
+	ID          int
+	Method      string
+	Path        string
+	RequestURI  string
 	QueryParams url.Values
-	Proto      string
-	Headers    http.Header
-	Body       string
-	Timestamp  time.Time
-	RemoteAddr string
+	Proto       string
+	Headers     http.Header
+	Body        string
+	Timestamp   time.Time
+	RemoteAddr  string
 }
 
 // PageData structure is used to pass data to the main template.
@@ -40,6 +40,7 @@ type PageData struct {
 	AllRequests     []RequestInfo
 	SelectedRequest *RequestInfo // Using a pointer so that it can be nil when no request is selected
 	PathFilter      string
+	BaseURL         string
 }
 
 // Version information will be set during build
@@ -75,6 +76,8 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1", "Address to listen on")
 	max := flag.Int("max", 100, "Maximum number of requests to store")
 	cli := flag.Bool("cli", false, "Print requests to command line")
+	tlsCert := flag.String("tls-cert", "", "Path to the TLS certificate file")
+	tlsKey := flag.String("tls-key", "", "Path to the TLS private key file")
 	flag.Parse()
 
 	// Assign the value of command-line parameters to global variables.
@@ -86,12 +89,28 @@ func main() {
 
 	// Build a listening address using the specified address and port.
 	addr := fmt.Sprintf("%s:%d", *listen, *port)
+	useTLS := *tlsCert != "" || *tlsKey != ""
+
+	if useTLS && (*tlsCert == "" || *tlsKey == "") {
+		log.Fatal("Both -tls-cert and -tls-key must be provided to enable HTTPS")
+	}
 
 	// Start the server and listen on the specified port.
 	fmt.Printf("Server starting on port %d...\n", *port)
 	fmt.Printf("Maximum requests to store: %d\n", maxRequests)
-	fmt.Printf("Send any HTTP request to http://%s:%d/some/path\n", *listen, *port)
-	fmt.Printf("View captured requests at http://%s:%d/\n", *listen, *port)
+	scheme := "http"
+	if useTLS {
+		scheme = "https"
+		fmt.Printf("TLS enabled with certificate %s and key %s\n", *tlsCert, *tlsKey)
+	}
+	fmt.Printf("Send any HTTP request to %s://%s:%d/some/path\n", scheme, *listen, *port)
+	fmt.Printf("View captured requests at %s://%s:%d/\n", scheme, *listen, *port)
+	if useTLS {
+		if err := http.ListenAndServeTLS(addr, *tlsCert, *tlsKey, nil); err != nil {
+			log.Fatal("ListenAndServeTLS: ", err)
+		}
+		return
+	}
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
@@ -124,6 +143,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Otherwise, capture the request.
 	captureRequestHandler(w, r)
+}
+
+func requestScheme(r *http.Request) string {
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
 }
 
 // faviconHandler serves the embedded favicon asset.
@@ -286,16 +312,16 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create a new RequestInfo instance.
 	reqInfo := RequestInfo{
-		ID:         id,
-		Method:     r.Method,
-		Path:       r.URL.Path,
-		RequestURI: r.URL.RequestURI(),
+		ID:          id,
+		Method:      r.Method,
+		Path:        r.URL.Path,
+		RequestURI:  r.URL.RequestURI(),
 		QueryParams: cloneValues(r.URL.Query()),
-		Proto:      r.Proto,
-		Headers:    r.Header,
-		Body:       string(bodyBytes),
-		Timestamp:  time.Now(),
-		RemoteAddr: r.RemoteAddr,
+		Proto:       r.Proto,
+		Headers:     r.Header,
+		Body:        string(bodyBytes),
+		Timestamp:   time.Now(),
+		RemoteAddr:  r.RemoteAddr,
 	}
 
 	// Lock to safely update the storage.
@@ -313,7 +339,7 @@ func captureRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Respond to the client, informing that the request has been captured.
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Request captured successfully. View at http://%s/?view_id=%d", r.Host, id)
+	fmt.Fprintf(w, "Request captured successfully. View at %s://%s/?view_id=%d", requestScheme(r), r.Host, id)
 
 	// Print request details to CLI if in CLI mode
 	if cliMode {
@@ -354,6 +380,7 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request) {
 		AllRequests:     requests,
 		SelectedRequest: selectedReq,
 		PathFilter:      pathFilter,
+		BaseURL:         fmt.Sprintf("%s://%s", requestScheme(r), r.Host),
 	}
 
 	renderTemplate(w, "main", pageData)
