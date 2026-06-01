@@ -13,6 +13,9 @@
             'en': {
                 'title': 'Tiny RequestBin',
                 'subtitle_prefix': 'Send requests to',
+                'example_path_placeholder': 'your-path',
+                'copy_example_url': 'Copy example URL',
+                'request_path_input': 'Request path',
                 'auto_refresh': 'Auto Refresh',
                 'auto_refresh_active': 'Live',
                 'auto_refresh_inactive': 'Auto Off',
@@ -21,6 +24,7 @@
                 'refresh': 'Refresh',
                 'clear_requests': 'Clear',
                 'search_path': 'Search path',
+                'search_toggle': 'Toggle path search',
                 'search_path_placeholder': 'Filter by path, e.g. /api',
                 'confirm': 'Confirm',
                 'clear_confirm': 'Clear all captured requests?',
@@ -47,6 +51,9 @@
             'zh-CN': {
                 'title': 'Tiny RequestBin',
                 'subtitle_prefix': '发送请求到',
+                'example_path_placeholder': 'your-path',
+                'copy_example_url': '复制示例地址',
+                'request_path_input': '请求路径',
                 'auto_refresh': '自动刷新',
                 'auto_refresh_active': '自动刷新中',
                 'auto_refresh_inactive': '自动刷新关闭',
@@ -55,6 +62,7 @@
                 'refresh': '刷新',
                 'clear_requests': '清空',
                 'search_path': '搜索路径',
+                'search_toggle': '切换路径搜索',
                 'search_path_placeholder': '按路径过滤，例如 /api',
                 'confirm': '确定',
                 'clear_confirm': '确定清空所有已捕获的请求？',
@@ -123,6 +131,13 @@
             // 特殊处理一些动态元素
             document.title = translations[currentLang]['title'];
             renderSubtitle();
+
+            const togglePathSearchButton = document.getElementById('togglePathSearchButton');
+            if (togglePathSearchButton) {
+                const searchToggleLabel = translations[currentLang]['search_toggle'] || 'Toggle path search';
+                togglePathSearchButton.title = searchToggleLabel;
+                togglePathSearchButton.setAttribute('aria-label', searchToggleLabel);
+            }
         }
 
         function renderSubtitle() {
@@ -130,18 +145,64 @@
             if (!subtitle) return;
 
             const origin = window.location.origin || `${window.location.protocol}//${window.location.host}`;
-            const exampleUrl = `${origin}/your-path`;
             const prefix = translations[currentLang]['subtitle_prefix'] || '';
+            const pathPlaceholder = translations[currentLang]['example_path_placeholder'] || 'your-path';
 
             const subtitleUrl = document.getElementById('subtitle-url');
             if (subtitleUrl) {
-                subtitleUrl.textContent = exampleUrl;
+                subtitleUrl.textContent = `${origin}/`;
             }
 
             const subtitlePrefix = document.getElementById('subtitle-prefix');
             if (subtitlePrefix) {
                 subtitlePrefix.textContent = `${prefix} `;
             }
+
+            const subtitlePathInput = document.getElementById('subtitle-path-input');
+            if (subtitlePathInput) {
+                subtitlePathInput.placeholder = pathPlaceholder;
+                const pathInputLabel = translations[currentLang]['request_path_input'] || 'Request path';
+                subtitlePathInput.setAttribute('aria-label', pathInputLabel);
+                updateSubtitlePathInputWidth();
+            }
+
+            const copySubtitleBtn = document.getElementById('copy-subtitle-btn');
+            if (copySubtitleBtn) {
+                const copyLabel = translations[currentLang]['copy_example_url'] || 'Copy example URL';
+                copySubtitleBtn.title = copyLabel;
+                copySubtitleBtn.setAttribute('aria-label', copyLabel);
+            }
+        }
+
+        function getSubtitlePathValue() {
+            const subtitlePathInput = document.getElementById('subtitle-path-input');
+            const fallbackPath = translations[currentLang]['example_path_placeholder'] || 'your-path';
+            const rawValue = subtitlePathInput ? subtitlePathInput.value.trim() : '';
+
+            if (!rawValue) {
+                return fallbackPath;
+            }
+
+            return rawValue.replace(/^\/+/, '');
+        }
+
+        function getSubtitleCopyUrl() {
+            const subtitleUrl = document.getElementById('subtitle-url');
+            if (!subtitleUrl) return '';
+
+            const baseUrl = subtitleUrl.textContent || subtitleUrl.innerText || '';
+            return `${baseUrl}${getSubtitlePathValue()}`;
+        }
+
+        function updateSubtitlePathInputWidth() {
+            const subtitlePathInput = document.getElementById('subtitle-path-input');
+            const subtitlePathMeasure = document.getElementById('subtitle-path-measure');
+            if (!subtitlePathInput || !subtitlePathMeasure) return;
+
+            const fallbackPath = translations[currentLang]['example_path_placeholder'] || 'your-path';
+            subtitlePathMeasure.textContent = subtitlePathInput.value || subtitlePathInput.placeholder || fallbackPath;
+            const measuredWidth = Math.ceil(subtitlePathMeasure.getBoundingClientRect().width) + 6;
+            subtitlePathInput.style.width = `${Math.max(measuredWidth, 72)}px`;
         }
 
         async function copyText(text) {
@@ -175,7 +236,7 @@
             <h1 class="text-2xl font-bold text-gray-900" data-i18n="title">Tiny RequestBin</h1>
             <div id="subtitle" class="mt-1 flex items-center justify-center gap-2 text-sm text-gray-600">
                 <p class="min-w-0">
-                    <span id="subtitle-prefix">Send requests to </span><span id="subtitle-url" class="font-mono">{{.BaseURL}}/your-path</span>
+                    <span id="subtitle-prefix">Send requests to </span><span id="subtitle-url" class="font-mono">{{.BaseURL}}/</span><input id="subtitle-path-input" type="text" placeholder="your-path" class="border-0 border-b border-dashed border-gray-300 bg-transparent px-0.5 font-mono text-inherit focus:border-indigo-400 focus:outline-none focus:ring-0" aria-label="Request path"><span id="subtitle-path-measure" class="invisible absolute left-[-9999px] top-[-9999px] whitespace-pre px-0.5 font-mono text-sm"></span>
                 </p>
                 <button id="copy-subtitle-btn" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-200" title="Copy example URL" aria-label="Copy example URL">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -191,7 +252,14 @@
         <!-- Left Column: Request List -->
         <aside class="w-1/3 bg-white border-r flex flex-col">
             <div class="p-4 border-b flex items-center justify-between gap-3">
-                <h2 class="text-lg font-semibold" data-i18n="captured_requests">已捕获的请求</h2>
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-semibold" data-i18n="captured_requests">已捕获的请求</h2>
+                    <button id="togglePathSearchButton" class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-200" title="Toggle path search" aria-label="Toggle path search" aria-expanded="false" aria-controls="pathSearchPanel">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </button>
+                </div>
                 <div class="flex items-center gap-2">
                     <div id="refreshControlGroup" class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 overflow-hidden">
                         <button id="autoRefreshToggleButton" class="inline-flex items-center gap-2 px-2.5 py-1.5 transition-colors hover:bg-slate-100">
@@ -219,7 +287,7 @@
                     </button>
                 </div>
             </div>
-            <div class="p-4 border-b bg-gray-50">
+            <div id="pathSearchPanel" class="hidden p-4 border-b bg-gray-50">
                 <label for="pathSearchInput" class="mb-2 block text-sm font-medium text-gray-700" data-i18n="search_path">搜索路径</label>
                 <input
                     id="pathSearchInput"
@@ -396,11 +464,15 @@
             const clearRequestsButton = document.getElementById('clearRequestsButton');
             const listRefreshButton = document.getElementById('listRefreshButton');
             const pathSearchInput = document.getElementById('pathSearchInput');
+            const pathSearchPanel = document.getElementById('pathSearchPanel');
+            const togglePathSearchButton = document.getElementById('togglePathSearchButton');
+            const subtitlePathInput = document.getElementById('subtitle-path-input');
             const requestList = document.querySelector('aside .overflow-y-auto');
             let refreshInterval;
             let searchDebounceTimer;
             let currentPathFilter = new URLSearchParams(window.location.search).get('path') || '';
             let isAutoRefreshEnabled = true;
+            let isPathSearchOpen = currentPathFilter !== '';
 
             // --- Pagination controls ---
             const prevPageBtn = document.getElementById('prevPageBtn');
@@ -410,6 +482,41 @@
 
             if (pathSearchInput) {
                 pathSearchInput.value = currentPathFilter;
+            }
+
+            function updatePathSearchToggleButton() {
+                if (!togglePathSearchButton) {
+                    return;
+                }
+
+                const activeClasses = ['bg-indigo-50', 'text-indigo-700'];
+                const inactiveClasses = ['text-slate-500', 'hover:bg-slate-100', 'hover:text-slate-700'];
+
+                togglePathSearchButton.setAttribute('aria-expanded', String(isPathSearchOpen));
+                if (currentPathFilter) {
+                    togglePathSearchButton.classList.remove(...inactiveClasses);
+                    togglePathSearchButton.classList.add(...activeClasses);
+                } else {
+                    togglePathSearchButton.classList.remove(...activeClasses);
+                    togglePathSearchButton.classList.add(...inactiveClasses);
+                }
+            }
+
+            function setPathSearchOpen(nextOpen, { focusInput = false } = {}) {
+                if (!pathSearchPanel) {
+                    return;
+                }
+
+                isPathSearchOpen = nextOpen;
+                pathSearchPanel.classList.toggle('hidden', !isPathSearchOpen);
+                updatePathSearchToggleButton();
+
+                if (focusInput && isPathSearchOpen && pathSearchInput) {
+                    requestAnimationFrame(() => {
+                        pathSearchInput.focus();
+                        pathSearchInput.select();
+                    });
+                }
             }
 
             function startRefresh() {
@@ -667,6 +774,7 @@
                 pathSearchInput.addEventListener('input', () => {
                     currentPathFilter = pathSearchInput.value.trim();
                     currentPage = 1;
+                    updatePathSearchToggleButton();
 
                     if (searchDebounceTimer) {
                         clearTimeout(searchDebounceTimer);
@@ -676,6 +784,19 @@
                     searchDebounceTimer = setTimeout(() => {
                         updateRequestList(1);
                     }, 300);
+                });
+            }
+
+            if (subtitlePathInput) {
+                subtitlePathInput.addEventListener('input', updateSubtitlePathInputWidth);
+                subtitlePathInput.addEventListener('focus', updateSubtitlePathInputWidth);
+                subtitlePathInput.addEventListener('blur', updateSubtitlePathInputWidth);
+            }
+
+            if (togglePathSearchButton) {
+                togglePathSearchButton.addEventListener('click', () => {
+                    const nextOpen = !isPathSearchOpen;
+                    setPathSearchOpen(nextOpen, { focusInput: nextOpen });
                 });
             }
 
@@ -719,6 +840,8 @@
             if (!Number.isNaN(initialPage) && initialPage > 0) {
                 currentPage = initialPage;
             }
+            setPathSearchOpen(isPathSearchOpen);
+            updateSubtitlePathInputWidth();
             if (isAutoRefreshEnabled) {
                 startRefresh();
             }
@@ -810,11 +933,8 @@
             const copySubtitleBtn = document.getElementById('copy-subtitle-btn');
             if (copySubtitleBtn) {
                 copySubtitleBtn.addEventListener('click', async () => {
-                    const subtitleUrl = document.getElementById('subtitle-url');
-                    if (!subtitleUrl) return;
-
                     try {
-                        await copyText(subtitleUrl.textContent || subtitleUrl.innerText || '');
+                        await copyText(getSubtitleCopyUrl());
 
                         const originalContent = copySubtitleBtn.innerHTML;
                         copySubtitleBtn.innerHTML = `
@@ -831,8 +951,9 @@
                             copySubtitleBtn.innerHTML = originalContent;
                             copySubtitleBtn.classList.remove('text-green-600');
                             copySubtitleBtn.classList.add('text-gray-500', 'hover:text-gray-800');
-                            copySubtitleBtn.title = 'Copy example URL';
-                            copySubtitleBtn.setAttribute('aria-label', 'Copy example URL');
+                            const copyLabel = translations[currentLang]['copy_example_url'] || 'Copy example URL';
+                            copySubtitleBtn.title = copyLabel;
+                            copySubtitleBtn.setAttribute('aria-label', copyLabel);
                         }, 2000);
                     } catch (err) {
                         console.error('Failed to copy subtitle URL: ', err);
@@ -852,8 +973,9 @@
                             copySubtitleBtn.innerHTML = originalContent;
                             copySubtitleBtn.classList.remove('text-red-600');
                             copySubtitleBtn.classList.add('text-gray-500', 'hover:text-gray-800');
-                            copySubtitleBtn.title = 'Copy example URL';
-                            copySubtitleBtn.setAttribute('aria-label', 'Copy example URL');
+                            const copyLabel = translations[currentLang]['copy_example_url'] || 'Copy example URL';
+                            copySubtitleBtn.title = copyLabel;
+                            copySubtitleBtn.setAttribute('aria-label', copyLabel);
                         }, 2000);
                     }
                 });
