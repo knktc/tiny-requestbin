@@ -66,6 +66,25 @@ cd tiny-requestbin
 go build
 ```
 
+### macOS: Running a downloaded binary
+
+If you download a prebuilt macOS binary from Releases, Gatekeeper may block it the first time you open it.
+
+You can remove the quarantine attribute and make it executable with:
+
+```bash
+chmod +x tiny-requestbin
+xattr -d com.apple.quarantine tiny-requestbin
+```
+
+Then run it normally:
+
+```bash
+./tiny-requestbin
+```
+
+If macOS still blocks it, you can also allow it from `System Settings > Privacy & Security`.
+
 ## Usage
 
 Start the server with default options:
@@ -95,28 +114,6 @@ Run with HTTPS:
 tiny-requestbin -port 9443 -listen 127.0.0.1 \
   -tls-cert ./certs/localhost.pem \
   -tls-key ./certs/localhost-key.pem
-```
-
-Generate a local certificate with `mkcert`:
-
-```bash
-mkdir -p certs
-mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
-tiny-requestbin -port 9443 -listen 127.0.0.1 \
-  -tls-cert ./certs/localhost.pem \
-  -tls-key ./certs/localhost-key.pem
-```
-
-Optionally trust the local CA in your system keychain for browser-friendly testing:
-
-```bash
-mkcert -install
-```
-
-Or verify without changing the system trust store:
-
-```bash
-curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://127.0.0.1:9443/
 ```
 
 ## How It Works

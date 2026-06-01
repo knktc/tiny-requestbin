@@ -66,6 +66,25 @@ cd tiny-requestbin
 go build
 ```
 
+### macOS：下载二进制文件后的首次运行
+
+如果您是从 Releases 下载 macOS 预编译二进制文件，系统第一次打开时可能会被 Gatekeeper 拦截。
+
+可以先执行下面两步：添加执行权限，并移除下载文件的隔离标记：
+
+```bash
+chmod +x tiny-requestbin
+xattr -d com.apple.quarantine tiny-requestbin
+```
+
+然后再正常运行：
+
+```bash
+./tiny-requestbin
+```
+
+如果 macOS 仍然拦截，也可以在 `系统设置 > 隐私与安全性` 中手动允许。
+
 ## 使用方法
 
 使用默认选项启动服务器：
@@ -95,28 +114,6 @@ tiny-requestbin -port 9000 -listen 0.0.0.0 -max 1000 -cli
 tiny-requestbin -port 9443 -listen 127.0.0.1 \
   -tls-cert ./certs/localhost.pem \
   -tls-key ./certs/localhost-key.pem
-```
-
-使用 `mkcert` 生成本地证书：
-
-```bash
-mkdir -p certs
-mkcert -cert-file certs/localhost.pem -key-file certs/localhost-key.pem localhost 127.0.0.1 ::1
-tiny-requestbin -port 9443 -listen 127.0.0.1 \
-  -tls-cert ./certs/localhost.pem \
-  -tls-key ./certs/localhost-key.pem
-```
-
-如果希望浏览器直接信任该证书，可额外执行：
-
-```bash
-mkcert -install
-```
-
-如果不想修改系统信任库，也可以这样验证：
-
-```bash
-curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://127.0.0.1:9443/
 ```
 
 ## 工作原理
