@@ -27,42 +27,55 @@ jobs:
         id: get_tag
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
       
-      - name: Build macOS and Windows binaries
+      - name: Build binaries
         run: |
           # 创建build目录存放二进制文件
           mkdir -p builds
 
           # linux (amd64)
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o builds/tiny-requestbin-${{ env.TAG }}-linux-amd64 .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o builds/tiny-requestbin-linux-amd64 .
 
           # Linux (arm64)
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o builds/tiny-requestbin-${{ env.TAG }}-linux-arm64 .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -ldflags '-extldflags "-static"' -o builds/tiny-requestbin-linux-arm64 .
 
           # macOS (Intel)
-          GOOS=darwin GOARCH=amd64 go build -o builds/tiny-requestbin-${{ env.TAG }}-darwin-amd64 .
+          GOOS=darwin GOARCH=amd64 go build -o builds/tiny-requestbin-darwin-amd64 .
           
           # macOS (Apple Silicon)
-          GOOS=darwin GOARCH=arm64 go build -o builds/tiny-requestbin-${{ env.TAG }}-darwin-arm64 .
+          GOOS=darwin GOARCH=arm64 go build -o builds/tiny-requestbin-darwin-arm64 .
           
           # Windows (x86_64)
-          GOOS=windows GOARCH=amd64 go build -o builds/tiny-requestbin-${{ env.TAG }}-windows-amd64.exe .
+          GOOS=windows GOARCH=amd64 go build -o builds/tiny-requestbin-windows-amd64.exe .
 
       - name: Compress Binaries
         run: |
-          # 创建压缩文件
           cd builds
+          mkdir -p packages
 
-          # 压缩Linux二进制文件
+          make_package_dir() {
+            local package_name="$1"
+            local binary_source="$2"
+            local binary_name="$3"
 
-          tar -czf tiny-requestbin-${{ env.TAG }}-linux-amd64.tar.gz tiny-requestbin-${{ env.TAG }}-linux-amd64
-          tar -czf tiny-requestbin-${{ env.TAG }}-linux-arm64.tar.gz tiny-requestbin-${{ env.TAG }}-linux-arm64
+            mkdir -p "packages/${package_name}"
+            cp "${binary_source}" "packages/${package_name}/${binary_name}"
+            cp ../LICENSE "packages/${package_name}/LICENSE"
+            cp ../packaging/release-package-readme.txt "packages/${package_name}/README.txt"
+          }
 
-          # 压缩Mac二进制文件
-          tar -czf tiny-requestbin-${{ env.TAG }}-darwin-amd64.tar.gz tiny-requestbin-${{ env.TAG }}-darwin-amd64
-          tar -czf tiny-requestbin-${{ env.TAG }}-darwin-arm64.tar.gz tiny-requestbin-${{ env.TAG }}-darwin-arm64
-          
-          # 压缩Windows二进制文件
-          zip tiny-requestbin-${{ env.TAG }}-windows-amd64.zip tiny-requestbin-${{ env.TAG }}-windows-amd64.exe
+          make_package_dir "tiny-requestbin-${TAG}-linux-amd64" "tiny-requestbin-linux-amd64" "tiny-requestbin"
+          make_package_dir "tiny-requestbin-${TAG}-linux-arm64" "tiny-requestbin-linux-arm64" "tiny-requestbin"
+          make_package_dir "tiny-requestbin-${TAG}-darwin-amd64" "tiny-requestbin-darwin-amd64" "tiny-requestbin"
+          make_package_dir "tiny-requestbin-${TAG}-darwin-arm64" "tiny-requestbin-darwin-arm64" "tiny-requestbin"
+          make_package_dir "tiny-requestbin-${TAG}-windows-amd64" "tiny-requestbin-windows-amd64.exe" "tiny-requestbin.exe"
+
+          tar -czf "tiny-requestbin-${TAG}-linux-amd64.tar.gz" -C packages "tiny-requestbin-${TAG}-linux-amd64"
+          tar -czf "tiny-requestbin-${TAG}-linux-arm64.tar.gz" -C packages "tiny-requestbin-${TAG}-linux-arm64"
+
+          tar -czf "tiny-requestbin-${TAG}-darwin-amd64.tar.gz" -C packages "tiny-requestbin-${TAG}-darwin-amd64"
+          tar -czf "tiny-requestbin-${TAG}-darwin-arm64.tar.gz" -C packages "tiny-requestbin-${TAG}-darwin-arm64"
+
+          (cd packages && zip -rq "../tiny-requestbin-${TAG}-windows-amd64.zip" "tiny-requestbin-${TAG}-windows-amd64")
       
       - name: Create Release
         id: create_release
