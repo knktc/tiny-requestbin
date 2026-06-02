@@ -4,7 +4,7 @@
 
 Tiny RequestBin 是一个用 Go 语言编写的轻量级 HTTP 请求检查和调试工具。它可以捕获并显示 HTTP 请求，便于检查和调试。
 
-本项目使用 Gemini 做了开局，后面使用 Github Copilot 进行修改。
+本项目使用 Gemini 做了开局，后面使用 GitHub Copilot 进行修改，现在则主要由 Codex 维护。
 
 [![Go Version](https://img.shields.io/github/go-mod/go-version/knktc/tiny-requestbin)](https://golang.org/)
 [![License](https://img.shields.io/github/license/knktc/tiny-requestbin)](LICENSE)
@@ -19,7 +19,36 @@ Tiny RequestBin 是一个用 Go 语言编写的轻量级 HTTP 请求检查和调
 
 ## 安装
 
-### 方式一：使用 Docker（推荐）
+### 方式一：使用 `go install` 安装
+
+```bash
+go install github.com/knktc/tiny-requestbin@latest
+```
+
+### 方式二：从 Releases 下载预编译二进制文件
+
+在 [Releases](https://github.com/knktc/tiny-requestbin/releases) 页面中可以下载 macOS、Linux 和 Windows 的预编译二进制文件。
+
+下载对应平台的压缩包后，解压并直接运行即可。
+
+如果是在 macOS 上首次运行下载的二进制文件，Gatekeeper 可能会拦截。可以先执行下面两步：添加执行权限，并移除下载文件的隔离标记：
+
+```bash
+chmod +x tiny-requestbin
+xattr -d com.apple.quarantine tiny-requestbin
+```
+
+然后再正常运行：
+
+```bash
+./tiny-requestbin
+```
+
+如果 macOS 仍然拦截，也可以在 `系统设置 > 隐私与安全性` 中手动允许。
+
+特别说明：我没有 Windows 电脑，所以暂时还没有验证 Windows 二进制文件是否可用。欢迎大家测试后反馈意见。
+
+### 方式三：使用 Docker
 
 ```bash
 # 拉取并运行最新镜像
@@ -32,7 +61,7 @@ docker run -p 8282:8282 knktc/tiny-requestbin -port 8282 -listen 0.0.0.0
 docker-compose up -d
 ```
 
-### 方式二：使用 Helm 安装（Kubernetes）
+### 方式四：使用 Helm 安装（Kubernetes）
 
 ```bash
 # 使用默认配置安装
@@ -52,38 +81,13 @@ helm install my-requestbin helm/tiny-requestbin/ \
 
 默认使用镜像 `knktc/tiny-requestbin:latest`，通过 `ClusterIP` 类型的 Service 暴露 `8282` 端口，资源限制为 `128Mi` 内存 / `500m` CPU。
 
-### 方式三：使用 `go install` 安装
-
-```bash
-go install github.com/knktc/tiny-requestbin@latest
-```
-
-### 方式四：从源码构建
+### 方式五：从源码构建
 
 ```bash
 git clone https://github.com/knktc/tiny-requestbin.git
 cd tiny-requestbin
 go build
 ```
-
-### macOS：下载二进制文件后的首次运行
-
-如果您是从 Releases 下载 macOS 预编译二进制文件，系统第一次打开时可能会被 Gatekeeper 拦截。
-
-可以先执行下面两步：添加执行权限，并移除下载文件的隔离标记：
-
-```bash
-chmod +x tiny-requestbin
-xattr -d com.apple.quarantine tiny-requestbin
-```
-
-然后再正常运行：
-
-```bash
-./tiny-requestbin
-```
-
-如果 macOS 仍然拦截，也可以在 `系统设置 > 隐私与安全性` 中手动允许。
 
 ## 使用方法
 
@@ -131,29 +135,19 @@ Docker 镜像支持多种架构：
 
 多架构镜像会在推送 tag 时通过 GitHub Actions 自动构建和发布。
 
-### 本地开发
-
-```bash
-# 本地构建和测试（单架构）
-make docker-test
-
-# 仅为当前平台构建
-make docker-build
-```
-
 ## 截图
-
-### CLI 模式
-
-当使用 `-cli` 参数运行时，HTTP 请求会以美观的格式直接显示在终端中：
-
-![CLI 模式截图](screenshots/run_in_cmd.png)
 
 ### Web 界面
 
 Web 界面提供了一个简洁直观的方式来浏览和检查捕获的请求：
 
 ![Web 界面截图](screenshots/webpage.png)
+
+### CLI 模式
+
+当使用 `-cli` 参数运行时，HTTP 请求会以美观的格式直接显示在终端中：
+
+![CLI 模式截图](screenshots/run_in_cmd.png)
 
 ## 贡献
 

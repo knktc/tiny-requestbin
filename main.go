@@ -68,6 +68,18 @@ var (
 	cliMode bool
 )
 
+type filteredServerLogWriter struct {
+	writer io.Writer
+}
+
+func (w filteredServerLogWriter) Write(p []byte) (int, error) {
+	message := string(p)
+	if strings.Contains(message, "TLS handshake error") && strings.Contains(message, "first record does not look like a TLS handshake") {
+		return len(p), nil
+	}
+	return w.writer.Write(p)
+}
+
 // main function is the entry point of the program.
 // It sets up routes and starts the HTTP server.
 func main() {
@@ -105,13 +117,18 @@ func main() {
 	}
 	fmt.Printf("Send any HTTP request to %s://%s:%d/some/path\n", scheme, *listen, *port)
 	fmt.Printf("View captured requests at %s://%s:%d/\n", scheme, *listen, *port)
+	server := &http.Server{
+		Addr:     addr,
+		Handler:  nil,
+		ErrorLog: log.New(filteredServerLogWriter{writer: os.Stderr}, "", log.LstdFlags),
+	}
 	if useTLS {
-		if err := http.ListenAndServeTLS(addr, *tlsCert, *tlsKey, nil); err != nil {
+		if err := server.ListenAndServeTLS(*tlsCert, *tlsKey); err != nil {
 			log.Fatal("ListenAndServeTLS: ", err)
 		}
 		return
 	}
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
@@ -445,6 +462,16 @@ func printRequestToCLI(reqInfo RequestInfo) {
 	}
 	fmt.Printf("🔹 %s %s %s\n", reqInfo.Method, requestTarget, reqInfo.Proto)
 	fmt.Printf("🔹 Remote Address: %s\n", reqInfo.RemoteAddr)
+
+	// Query parameters
+	if len(reqInfo.QueryParams) > 0 {
+		fmt.Printf("\n🔎 Query Parameters:\n")
+		for name, values := range reqInfo.QueryParams {
+			for _, value := range values {
+				fmt.Printf("   %s: %s\n", name, value)
+			}
+		}
+	}
 
 	// Headers
 	if len(reqInfo.Headers) > 0 {

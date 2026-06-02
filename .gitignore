@@ -34,6 +34,7 @@ __debug_*
 
 # Build output
 /tiny-requestbin
+/certs/*.pem
 
 # macos
 .DS_Store

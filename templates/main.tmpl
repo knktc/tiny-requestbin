@@ -90,18 +90,29 @@
 
         // 设置当前语言
         let currentLang = 'en';
+
+        function normalizeLanguage(lang) {
+            if (!lang) {
+                return null;
+            }
+
+            const normalized = String(lang).trim().toLowerCase();
+            if (normalized === 'zh' || normalized === 'zh-cn' || normalized.startsWith('zh-')) {
+                return 'zh-CN';
+            }
+            if (normalized === 'en' || normalized === 'en-us' || normalized.startsWith('en-')) {
+                return 'en';
+            }
+
+            return null;
+        }
         
         // 语言检测和初始化函数
         function initLanguage() {
-            // 检测浏览器语言
-            const browserLang = navigator.language || navigator.userLanguage;
-            
-            // 如果是中文，设置为中文
-            if (browserLang.startsWith('zh')) {
-                currentLang = 'zh-CN';
-            } else {
-                currentLang = 'en';
-            }
+            const urlLang = normalizeLanguage(new URLSearchParams(window.location.search).get('lang'));
+            const browserLang = normalizeLanguage(navigator.language || navigator.userLanguage);
+
+            currentLang = urlLang || browserLang || 'en';
             
             // 设置HTML的lang属性
             document.documentElement.lang = currentLang;
@@ -271,7 +282,11 @@
                         </button>
                         <div class="h-4 w-px bg-slate-200"></div>
                         <label for="refreshIntervalInput" class="sr-only" data-i18n="seconds">秒</label>
-                        <div class="inline-flex items-center gap-1 px-2 py-1.5 text-slate-600">
+                        <button id="autoRefreshCountdownDisplay" type="button" class="hidden items-center gap-1 px-2 py-1.5 text-emerald-700 transition-colors hover:bg-emerald-100" title="Edit refresh interval">
+                            <span id="autoRefreshCountdownValue" class="min-w-5 text-center tabular-nums">5</span>
+                            <span data-i18n="seconds">秒</span>
+                        </button>
+                        <div id="refreshIntervalEditor" class="hidden items-center gap-1 px-2 py-1.5 text-emerald-700">
                             <input type="number" id="refreshIntervalInput" class="w-8 border-0 bg-transparent p-0 text-center text-xs font-semibold text-inherit focus:outline-none focus:ring-0" min="1" value="5">
                             <span data-i18n="seconds">秒</span>
                         </div>
@@ -463,6 +478,9 @@
             const autoRefreshButtonLabel = document.getElementById('autoRefreshButtonLabel');
             const autoRefreshStatusDot = document.getElementById('autoRefreshStatusDot');
             const refreshControlGroup = document.getElementById('refreshControlGroup');
+            const autoRefreshCountdownDisplay = document.getElementById('autoRefreshCountdownDisplay');
+            const autoRefreshCountdownValue = document.getElementById('autoRefreshCountdownValue');
+            const refreshIntervalEditor = document.getElementById('refreshIntervalEditor');
             const intervalInput = document.getElementById('refreshIntervalInput');
             const clearRequestsButton = document.getElementById('clearRequestsButton');
             const listRefreshButton = document.getElementById('listRefreshButton');
@@ -471,11 +489,14 @@
             const togglePathSearchButton = document.getElementById('togglePathSearchButton');
             const subtitlePathInput = document.getElementById('subtitle-path-input');
             const requestList = document.querySelector('aside .overflow-y-auto');
-            let refreshInterval;
+            let autoRefreshTimer;
+            let countdownInterval;
+            let countdownSeconds = 5;
             let searchDebounceTimer;
             let currentPathFilter = new URLSearchParams(window.location.search).get('path') || '';
             let isAutoRefreshEnabled = true;
             let isPathSearchOpen = currentPathFilter !== '';
+            let isEditingRefreshInterval = false;
 
             // --- Pagination controls ---
             const prevPageBtn = document.getElementById('prevPageBtn');
@@ -522,23 +543,85 @@
                 }
             }
 
-            function startRefresh() {
-                if (refreshInterval) clearInterval(refreshInterval);
+            function getRefreshIntervalSeconds() {
                 let interval = parseInt(intervalInput.value, 10);
                 if (isNaN(interval) || interval < 1) {
-                    interval = 5; // 如果输入无效，则重置为默认值
+                    interval = 5;
                     intervalInput.value = '5';
                 }
-                refreshInterval = setInterval(() => updateRequestList(), interval * 1000);
+                return interval;
+            }
+
+            function updateCountdownDisplay() {
+                if (autoRefreshCountdownValue) {
+                    autoRefreshCountdownValue.textContent = String(countdownSeconds);
+                }
+            }
+
+            function beginRefreshIntervalEdit() {
+                if (!isAutoRefreshEnabled || !refreshIntervalEditor || !intervalInput) {
+                    return;
+                }
+                isEditingRefreshInterval = true;
+                updateRefreshControls();
+                requestAnimationFrame(() => {
+                    intervalInput.focus();
+                    intervalInput.select();
+                });
+            }
+
+            function finishRefreshIntervalEdit({ apply = true } = {}) {
+                if (!isEditingRefreshInterval) {
+                    return;
+                }
+
+                if (apply) {
+                    const interval = getRefreshIntervalSeconds();
+                    localStorage.setItem('autoRefreshInterval', String(interval));
+                    if (isAutoRefreshEnabled) {
+                        startRefresh();
+                    }
+                }
+
+                isEditingRefreshInterval = false;
+                updateRefreshControls();
             }
 
             function stopRefresh() {
-                clearInterval(refreshInterval);
-                refreshInterval = null;
+                clearTimeout(autoRefreshTimer);
+                clearInterval(countdownInterval);
+                autoRefreshTimer = null;
+                countdownInterval = null;
+            }
+
+            function startRefresh() {
+                stopRefresh();
+                countdownSeconds = getRefreshIntervalSeconds();
+                updateCountdownDisplay();
+
+                countdownInterval = setInterval(() => {
+                    countdownSeconds = Math.max(0, countdownSeconds - 1);
+                    updateCountdownDisplay();
+                }, 1000);
+
+                autoRefreshTimer = setTimeout(() => {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    countdownSeconds = 0;
+                    updateCountdownDisplay();
+
+                    Promise.resolve(updateRequestList(currentPage))
+                        .catch(() => {})
+                        .finally(() => {
+                            if (isAutoRefreshEnabled) {
+                                startRefresh();
+                            }
+                        });
+                }, countdownSeconds * 1000);
             }
 
             function updateRefreshControls() {
-                if (!autoRefreshToggleButton || !autoRefreshButtonLabel || !autoRefreshStatusDot || !refreshControlGroup || !listRefreshButton) {
+                if (!autoRefreshToggleButton || !autoRefreshButtonLabel || !autoRefreshStatusDot || !refreshControlGroup || !listRefreshButton || !autoRefreshCountdownDisplay || !refreshIntervalEditor || !intervalInput) {
                     return;
                 }
 
@@ -547,12 +630,29 @@
                     autoRefreshToggleButton.className = 'inline-flex items-center gap-2 px-2.5 py-1.5 transition-colors hover:bg-emerald-100';
                     autoRefreshButtonLabel.textContent = translations[currentLang]['auto_refresh_active'];
                     autoRefreshStatusDot.className = 'h-2 w-2 rounded-full bg-emerald-500';
+                    if (isEditingRefreshInterval) {
+                        autoRefreshCountdownDisplay.classList.add('hidden');
+                        autoRefreshCountdownDisplay.classList.remove('inline-flex');
+                        refreshIntervalEditor.classList.remove('hidden');
+                        refreshIntervalEditor.classList.add('inline-flex');
+                    } else {
+                        autoRefreshCountdownDisplay.classList.remove('hidden');
+                        autoRefreshCountdownDisplay.classList.add('inline-flex');
+                        refreshIntervalEditor.classList.add('hidden');
+                        refreshIntervalEditor.classList.remove('inline-flex');
+                    }
+                    intervalInput.disabled = false;
                     listRefreshButton.classList.add('hidden');
                 } else {
                     refreshControlGroup.className = 'inline-flex items-center rounded-full border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 overflow-hidden';
                     autoRefreshToggleButton.className = 'inline-flex items-center gap-2 px-2.5 py-1.5 transition-colors hover:bg-slate-100';
                     autoRefreshButtonLabel.textContent = translations[currentLang]['auto_refresh_inactive'];
                     autoRefreshStatusDot.className = 'h-2 w-2 rounded-full bg-slate-400';
+                    autoRefreshCountdownDisplay.classList.add('hidden');
+                    autoRefreshCountdownDisplay.classList.remove('inline-flex');
+                    refreshIntervalEditor.classList.add('hidden');
+                    refreshIntervalEditor.classList.remove('inline-flex');
+                    intervalInput.disabled = true;
                     listRefreshButton.classList.remove('hidden');
                 }
             }
@@ -602,8 +702,11 @@
             }
 
             // Function to update only the request list via AJAX
-            function updateRequestList(page = currentPage) {
+            function updateRequestList(page = currentPage, { resetAutoRefresh = false } = {}) {
                 if (isUpdating) return;
+                if (resetAutoRefresh && isAutoRefreshEnabled) {
+                    stopRefresh();
+                }
                 isUpdating = true;
                 const params = new URLSearchParams({
                     page: String(page),
@@ -670,6 +773,9 @@
                     })
                     .finally(() => {
                         isUpdating = false;
+                        if (resetAutoRefresh && isAutoRefreshEnabled) {
+                            startRefresh();
+                        }
                     });
             }
 
@@ -699,28 +805,35 @@
             // Pagination button event listeners
             prevPageBtn.addEventListener('click', () => {
                 if (currentPage > 1) {
-                    updateRequestList(currentPage - 1);
+                    updateRequestList(currentPage - 1, { resetAutoRefresh: true });
                 }
             });
 
             nextPageBtn.addEventListener('click', () => {
                 if (currentPage < totalPages) {
-                    updateRequestList(currentPage + 1);
+                    updateRequestList(currentPage + 1, { resetAutoRefresh: true });
                 }
             });
 
             autoRefreshToggleButton.addEventListener('click', () => {
-                localStorage.setItem('autoRefreshInterval', intervalInput.value);
+                localStorage.setItem('autoRefreshInterval', String(getRefreshIntervalSeconds()));
                 isAutoRefreshEnabled = !isAutoRefreshEnabled;
                 if (isAutoRefreshEnabled) {
                     localStorage.setItem('autoRefreshEnabled', 'true');
                     startRefresh();
                 } else {
                     localStorage.setItem('autoRefreshEnabled', 'false');
+                    isEditingRefreshInterval = false;
                     stopRefresh();
                 }
                 updateRefreshControls();
             });
+
+            if (autoRefreshCountdownDisplay) {
+                autoRefreshCountdownDisplay.addEventListener('click', () => {
+                    beginRefreshIntervalEdit();
+                });
+            }
 
 
             if (clearRequestsButton) {
@@ -785,7 +898,7 @@
 
                     syncUrlParams({ page: 1, path: currentPathFilter, viewId: null });
                     searchDebounceTimer = setTimeout(() => {
-                        updateRequestList(1);
+                        updateRequestList(1, { resetAutoRefresh: true });
                     }, 300);
                 });
             }
@@ -812,7 +925,7 @@
                     if (refreshIcon) {
                         refreshIcon.classList.add('animate-spin');
                     }
-                    Promise.resolve(updateRequestList())
+                    Promise.resolve(updateRequestList(currentPage, { resetAutoRefresh: true }))
                         .catch(() => {})
                         .finally(() => {
                             if (refreshIcon) {
@@ -824,14 +937,16 @@
                 });
             }
             
-            intervalInput.addEventListener('change', () => {
-                let interval = parseInt(intervalInput.value, 10);
-                if (isNaN(interval) || interval < 1) {
-                    intervalInput.value = '5'; // 重置为默认值
-                }
-                localStorage.setItem('autoRefreshInterval', intervalInput.value);
-                if (isAutoRefreshEnabled) {
-                    startRefresh(); // 如果已启用，则使用新间隔重新启动
+            intervalInput.addEventListener('blur', () => {
+                finishRefreshIntervalEdit({ apply: true });
+            });
+            intervalInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    finishRefreshIntervalEdit({ apply: true });
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    finishRefreshIntervalEdit({ apply: false });
                 }
             });
 
@@ -849,9 +964,10 @@
                 startRefresh();
             }
             updateRefreshControls();
+            updateCountdownDisplay();
 
             // Initialize pagination and request list
-            updateRequestList();
+            updateRequestList(currentPage);
 
             // Handle request link clicks
             function handleRequestClick(event) {
