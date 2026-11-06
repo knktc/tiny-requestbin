@@ -366,104 +366,15 @@
         <!-- Right Column: Request Details -->
         <main class="w-2/3 overflow-y-auto p-4 md:p-8">
             {{if .SelectedRequest}}
-            <div class="bg-white rounded-lg shadow-md mb-6">
-                <div class="p-5 md:p-6">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <h2 class="text-xl font-semibold text-gray-900"><span data-i18n="request_details">请求详情</span> #{{.SelectedRequest.ID}}</h2>
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
-                            {{if eq .SelectedRequest.Method "GET"}} bg-green-100 text-green-800
-                            {{else if eq .SelectedRequest.Method "POST"}} bg-blue-100 text-blue-800
-                            {{else if eq .SelectedRequest.Method "PUT"}} bg-yellow-100 text-yellow-800
-                            {{else if eq .SelectedRequest.Method "DELETE"}} bg-red-100 text-red-800
-                            {{else}} bg-gray-100 text-gray-800 {{end}}">
-                            {{.SelectedRequest.Method}}
-                        </span>
-                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{.SelectedRequest.Proto}}</span>
-                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 font-mono">{{.SelectedRequest.RemoteAddr}}</span>
-                        <span class="text-sm text-gray-500">{{.SelectedRequest.Timestamp | formatTime}}</span>
-                    </div>
-                    <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500" data-i18n="path">路径</div>
-                        <div class="mt-1 break-all font-mono text-sm text-slate-900">{{if .SelectedRequest.RequestURI}}{{.SelectedRequest.RequestURI}}{{else}}{{.SelectedRequest.Path}}{{end}}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid gap-6 xl:grid-cols-5">
-                <div class="space-y-6 xl:col-span-2">
-                    <div class="bg-white rounded-lg shadow-md">
-                        <div id="headers-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                            <h2 class="text-lg font-semibold" data-i18n="headers">标头 (Headers)</h2>
-                            <svg id="headers-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                        <div id="headers-content" class="px-5 py-4 overflow-auto transition-all duration-300 max-h-72">
-                            <dl class="space-y-3">
-                                {{range $key, $values := .SelectedRequest.Headers}}
-                                    <div class="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 break-all">{{$key}}</dt>
-                                        <dd class="mt-1 text-sm text-slate-900 font-mono break-all">{{range $values}}{{.}}{{end}}</dd>
-                                    </div>
-                                {{end}}
-                            </dl>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-md">
-                        <div id="query-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                            <h2 class="text-lg font-semibold" data-i18n="query_parameters">查询参数</h2>
-                            <svg id="query-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                        <div id="query-content" class="px-5 py-4 overflow-auto transition-all duration-300 max-h-72" data-has-content="{{if .SelectedRequest.QueryParams}}true{{else}}false{{end}}">
-                            {{if .SelectedRequest.QueryParams}}
-                            <dl class="space-y-3">
-                                {{range $key, $values := .SelectedRequest.QueryParams}}
-                                    <div class="rounded-lg bg-slate-50 px-3 py-2">
-                                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 break-all">{{$key}}</dt>
-                                        <dd class="mt-1 text-sm text-slate-900 font-mono break-all">{{range $index, $value := $values}}{{if $index}}, {{end}}{{$value}}{{end}}</dd>
-                                    </div>
-                                {{end}}
-                            </dl>
-                            {{else}}
-                            <p class="text-sm text-gray-500" data-i18n="no_query_parameters">没有查询参数。</p>
-                            {{end}}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="xl:col-span-3">
-                    <div class="bg-white rounded-lg shadow-md">
-                        <div id="body-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                            <h2 class="text-lg font-semibold" data-i18n="body">正文 (Body)</h2>
-                            <svg id="body-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                        <div id="body-content" class="p-5 transition-all duration-300 relative">
-                            {{if .SelectedRequest.Body}}
-                                <div class="relative">
-                                    <pre id="body-text" class="max-h-[60vh] overflow-auto rounded-xl bg-gray-900 p-4 text-sm text-white shadow-inner"><code>{{prettyPrintJson .SelectedRequest.Body}}</code></pre>
-                                    <button id="copy-body-btn" class="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md text-xs transition-colors duration-200 flex items-center gap-1" title="复制正文内容">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                        </svg>
-                                        <span data-i18n="copy">复制</span>
-                                    </button>
-                                </div>
-                            {{else}}
-                                <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-gray-500" data-i18n="no_body">该请求没有正文。</div>
-                            {{end}}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {{template "request-details" .SelectedRequest}}
             {{else}}
-            <div class="flex items-center justify-center h-full">
-                <div class="text-center text-gray-500">
-                    <h2 class="text-2xl font-semibold" data-i18n="welcome_title">欢迎！</h2>
-                    <p class="mt-2" data-i18n="welcome_message">请从左侧列表中选择一个请求以查看其详细信息。</p>
-                </div>
-            </div>
+            {{template "empty-details"}}
             {{end}}
         </main>
     </div>
+    <!-- Shared markup for server rendering and JSON-driven detail updates. -->
+    <template id="request-details-template">{{template "request-details"}}</template>
+    <template id="empty-details-template">{{template "empty-details"}}</template>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize language first
@@ -718,7 +629,7 @@
                     params.set('path', currentPathFilter);
                 }
                 
-                return fetch(`/api/requests?${params.toString()}`)
+                return fetch(`/__tiny_requestbin/api/requests?${params.toString()}`)
                     .then(response => response.json())
                     .then(data => {
                         const currentViewId = new URLSearchParams(window.location.search).get('view_id');
@@ -873,7 +784,7 @@
                     clearRequestsButton.classList.add('opacity-60', 'cursor-not-allowed');
 
                     try {
-                        const response = await fetch('/api/requests/clear', { method: 'POST' });
+                        const response = await fetch('/__tiny_requestbin/api/requests/clear', { method: 'POST' });
                         if (!response.ok) {
                             throw new Error('clear_failed');
                         }
@@ -1012,6 +923,86 @@
                 updateRequestList(currentPage);
             });
 
+            function renderRequestDetails(request) {
+                const templateId = request ? 'request-details-template' : 'empty-details-template';
+                const content = document.getElementById(templateId).content.cloneNode(true);
+                if (!request) {
+                    applyTranslations(content);
+                    return content;
+                }
+
+                // Captured data is untrusted: insert text, never HTML.
+                const setText = (field, value) => {
+                    content.querySelector(`[data-detail="${field}"]`).textContent = value;
+                };
+                for (const field of ['ID', 'Method', 'Proto', 'RemoteAddr']) {
+                    setText(field, request[field]);
+                }
+                const method = content.querySelector('[data-detail="Method"]');
+                method.className = `inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${getMethodColor(request.Method)}`;
+                setText('Timestamp', formatTime(request.Timestamp));
+                setText('RequestURI', request.RequestURI || request.Path);
+
+                const fillValues = (field, values, separator) => {
+                    const list = content.querySelector(`[data-detail="${field}"]`);
+                    for (const key of Object.keys(values || {}).sort()) {
+                        const row = document.createElement('div');
+                        row.className = 'rounded-lg bg-slate-50 px-3 py-2';
+                        const name = document.createElement('dt');
+                        name.className = 'text-xs font-semibold uppercase tracking-wide text-slate-500 break-all';
+                        name.textContent = key;
+                        const value = document.createElement('dd');
+                        value.className = 'mt-1 text-sm text-slate-900 font-mono break-all';
+                        value.textContent = values[key].join(separator);
+                        row.append(name, value);
+                        list.appendChild(row);
+                    }
+                };
+                fillValues('Headers', request.Headers, '');
+                fillValues('QueryParams', request.QueryParams, ', ');
+                const hasQuery = Object.keys(request.QueryParams || {}).length > 0;
+                content.querySelector('#query-content').dataset.hasContent = String(hasQuery);
+                content.querySelector('[data-detail="QueryParams"]').classList.toggle('hidden', !hasQuery);
+                content.querySelector('[data-i18n="no_query_parameters"]').classList.toggle('hidden', hasQuery);
+
+                const body = request.Body || '';
+                let formattedBody = body;
+                try {
+                    // Indent JSON without changing number precision or string escapes.
+                    // Parsing and re-stringifying would round large integer values.
+                    JSON.parse(body);
+                    const tokens = body.match(/"(?:\\.|[^"\\])*"|[{}\[\],:]|[^\s{}\[\],:]+/g) || [];
+                    let depth = 0;
+                    const parts = [];
+                    for (let i = 0; i < tokens.length; i++) {
+                        const token = tokens[i];
+                        if (token === '{' || token === '[') {
+                            parts.push(token);
+                            depth++;
+                            if (tokens[i + 1] !== '}' && tokens[i + 1] !== ']') parts.push('\n' + '  '.repeat(depth));
+                        } else if (token === '}' || token === ']') {
+                            depth--;
+                            if (tokens[i - 1] !== '{' && tokens[i - 1] !== '[') parts.push('\n' + '  '.repeat(depth));
+                            parts.push(token);
+                        } else if (token === ',') {
+                            parts.push(',\n' + '  '.repeat(depth));
+                        } else if (token === ':') {
+                            parts.push(': ');
+                        } else {
+                            parts.push(token);
+                        }
+                    }
+                    formattedBody = parts.join('');
+                } catch (_) {
+                    // Non-JSON request bodies are displayed verbatim.
+                }
+                content.querySelector('#body-text code').textContent = formattedBody;
+                content.querySelector('[data-detail="body-wrapper"]').classList.toggle('hidden', !body);
+                content.querySelector('[data-i18n="no_body"]').classList.toggle('hidden', !!body);
+                applyTranslations(content);
+                return content;
+            }
+
             async function loadRequestDetails(url, { pushHistory = false } = {}) {
                 if (detailsController) detailsController.abort();
                 const controller = new AbortController();
@@ -1021,21 +1012,24 @@
                 detailsLoadError.classList.add('hidden');
 
                 try {
-                    const response = await fetch(url, { signal: controller.signal });
+                    const requestId = url.searchParams.get('view_id');
+                    const params = new URLSearchParams({ limit: '1', path: url.searchParams.get('path') || '' });
+                    // History entries without a selection keep the original newest-request behavior.
+                    const endpoint = requestId !== null
+                        ? `/__tiny_requestbin/api/requests/${encodeURIComponent(requestId)}`
+                        : `/__tiny_requestbin/api/requests?${params}`;
+                    const response = await fetch(endpoint, { signal: controller.signal, cache: 'no-store' });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const html = await response.text();
+                    const data = await response.json();
                     if (controller.signal.aborted) return;
 
-                    // Translate off-screen so fallback text is never painted.
-                    const parsed = new DOMParser().parseFromString(html, 'text/html');
-                    const nextMain = parsed.querySelector('main');
-                    if (!nextMain) throw new Error('Missing request details');
-                    applyTranslations(nextMain);
-                    main.replaceChildren(...nextMain.childNodes);
+                    const request = requestId !== null ? data : (data.requests[0] || null);
+                    // Fill and translate the shared template before mounting it.
+                    main.replaceChildren(renderRequestDetails(request));
                     main.scrollTop = 0;
                     initRequestDetails();
                     if (pushHistory) window.history.pushState({}, '', url);
-                    updateSelectedRequest(url.searchParams.get('view_id'));
+                    updateSelectedRequest(request ? String(request.ID) : null);
                 } catch (error) {
                     if (controller.signal.aborted) return;
                     console.error('Error loading request details:', error);
@@ -1201,3 +1195,97 @@
     </script>
 </body>
 </html>
+
+{{define "request-details"}}
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div class="p-5 md:p-6">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h2 class="text-xl font-semibold text-gray-900"><span data-i18n="request_details">请求详情</span> #<span data-detail="ID">{{.ID}}</span></h2>
+                        <span data-detail="Method" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold
+                            {{if eq .Method "GET"}} bg-green-100 text-green-800
+                            {{else if eq .Method "POST"}} bg-blue-100 text-blue-800
+                            {{else if eq .Method "PUT"}} bg-yellow-100 text-yellow-800
+                            {{else if eq .Method "DELETE"}} bg-red-100 text-red-800
+                            {{else}} bg-gray-100 text-gray-800 {{end}}">
+                            {{.Method}}
+                        </span>
+                        <span data-detail="Proto" class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{.Proto}}</span>
+                        <span data-detail="RemoteAddr" class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 font-mono">{{.RemoteAddr}}</span>
+                        <span data-detail="Timestamp" class="text-sm text-gray-500">{{if .}}{{.Timestamp | formatTime}}{{end}}</span>
+                    </div>
+                    <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500" data-i18n="path">路径</div>
+                        <div data-detail="RequestURI" class="mt-1 break-all font-mono text-sm text-slate-900">{{if .RequestURI}}{{.RequestURI}}{{else}}{{.Path}}{{end}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid gap-6 xl:grid-cols-5">
+                <div class="space-y-6 xl:col-span-2">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div id="headers-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <h2 class="text-lg font-semibold" data-i18n="headers">标头 (Headers)</h2>
+                            <svg id="headers-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <div id="headers-content" class="px-5 py-4 overflow-auto transition-all duration-300 max-h-72">
+                            <dl data-detail="Headers" class="space-y-3">
+                                {{range $key, $values := .Headers}}
+                                    <div class="rounded-lg bg-slate-50 px-3 py-2">
+                                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 break-all">{{$key}}</dt>
+                                        <dd class="mt-1 text-sm text-slate-900 font-mono break-all">{{range $values}}{{.}}{{end}}</dd>
+                                    </div>
+                                {{end}}
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div id="query-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <h2 class="text-lg font-semibold" data-i18n="query_parameters">查询参数</h2>
+                            <svg id="query-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <div id="query-content" class="px-5 py-4 overflow-auto transition-all duration-300 max-h-72" data-has-content="{{if .QueryParams}}true{{else}}false{{end}}">
+                            <dl data-detail="QueryParams" class="space-y-3 {{if not .QueryParams}}hidden{{end}}">
+                                {{range $key, $values := .QueryParams}}
+                                    <div class="rounded-lg bg-slate-50 px-3 py-2">
+                                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500 break-all">{{$key}}</dt>
+                                        <dd class="mt-1 text-sm text-slate-900 font-mono break-all">{{range $index, $value := $values}}{{if $index}}, {{end}}{{$value}}{{end}}</dd>
+                                    </div>
+                                {{end}}
+                            </dl>
+                            <p class="text-sm text-gray-500 {{if .QueryParams}}hidden{{end}}" data-i18n="no_query_parameters">没有查询参数。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="xl:col-span-3">
+                    <div class="bg-white rounded-lg shadow-md">
+                        <div id="body-toggle" class="px-5 py-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <h2 class="text-lg font-semibold" data-i18n="body">正文 (Body)</h2>
+                            <svg id="body-chevron" class="w-5 h-5 transform transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <div id="body-content" class="p-5 transition-all duration-300 relative">
+                                <div data-detail="body-wrapper" class="relative {{if not .Body}}hidden{{end}}">
+                                    <pre id="body-text" class="max-h-[60vh] overflow-auto rounded-xl bg-gray-900 p-4 text-sm text-white shadow-inner"><code>{{if .Body}}{{prettyPrintJson .Body}}{{end}}</code></pre>
+                                    <button id="copy-body-btn" class="absolute top-2 right-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md text-xs transition-colors duration-200 flex items-center gap-1" title="复制正文内容">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <span data-i18n="copy">复制</span>
+                                    </button>
+                                </div>
+                                <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-gray-500 {{if .Body}}hidden{{end}}" data-i18n="no_body">该请求没有正文。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+{{end}}
+
+{{define "empty-details"}}
+            <div class="flex items-center justify-center h-full">
+                <div class="text-center text-gray-500">
+                    <h2 class="text-2xl font-semibold" data-i18n="welcome_title">欢迎！</h2>
+                    <p class="mt-2" data-i18n="welcome_message">请从左侧列表中选择一个请求以查看其详细信息。</p>
+                </div>
+            </div>
+{{end}}
