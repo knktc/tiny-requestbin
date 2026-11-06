@@ -46,9 +46,14 @@ type PageData struct {
 // Version information will be set during build
 var Version = "dev"
 
-// Constants for error messages
+// Constants for internal routes and error messages
 const (
+	requestsAPIPath      = "/__tiny_requestbin/api/requests"
+	requestDetailsPrefix = requestsAPIPath + "/"
+
 	InternalServerError = "Internal Server Error"
+	InvalidRequestID    = "Invalid request ID"
+	RequestNotFound     = "Request not found"
 )
 
 // Global store for our requests
@@ -143,13 +148,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// API endpoint to get requests as JSON for AJAX updates
-	if r.URL.Path == "/api/requests" {
+	if r.URL.Path == requestsAPIPath {
 		apiRequestsHandler(w, r)
 		return
 	}
 
-	if r.URL.Path == "/api/requests/clear" {
+	if r.URL.Path == requestsAPIPath+"/clear" {
 		clearRequestsHandler(w, r)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, requestDetailsPrefix) {
+		apiRequestDetailsHandler(w, r)
 		return
 	}
 
@@ -296,6 +305,32 @@ func apiRequestsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// apiRequestDetailsHandler returns a single captured request without rendering the page.
+func apiRequestDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, requestDetailsPrefix))
+	if err != nil || id < 0 {
+		http.Error(w, InvalidRequestID, http.StatusBadRequest)
+		return
+	}
+	mutex.RLock()
+	request, ok := requestsStore[id]
+	mutex.RUnlock()
+	if !ok {
+		http.Error(w, RequestNotFound, http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(request); err != nil {
+		log.Printf("Error encoding request details: %v", err)
+	}
+}
+
 // clearRequestsHandler clears all captured requests.
 func clearRequestsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -423,12 +458,12 @@ func renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
 			}
 			return currentID == selectedID.ID
 		},
-		"prettyPrintJson": func(body string) template.HTML {
+		"prettyPrintJson": func(body string) string {
 			var prettyJSON bytes.Buffer
 			if err := json.Indent(&prettyJSON, []byte(body), "", "  "); err == nil {
-				return template.HTML(prettyJSON.String())
+				return prettyJSON.String()
 			}
-			return template.HTML(template.HTMLEscapeString(body))
+			return body
 		},
 	}).Parse(string(tmplContent))
 
