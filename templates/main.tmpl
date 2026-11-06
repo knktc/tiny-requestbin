@@ -46,7 +46,8 @@
                 'no_body': 'This request has no body.',
                 'copy': 'Copy',
                 'copied': 'Copied!',
-                'copy_failed': 'Failed'
+                'copy_failed': 'Failed',
+                'details_load_failed': 'Could not load request details. Please try again.'
             },
             'zh-CN': {
                 'title': 'Tiny RequestBin',
@@ -84,7 +85,8 @@
                 'no_body': '该请求没有正文。',
                 'copy': '复制',
                 'copied': '已复制！',
-                'copy_failed': '失败'
+                'copy_failed': '失败',
+                'details_load_failed': '无法加载请求详情，请重试。'
             }
         };
 
@@ -122,8 +124,8 @@
         }
         
         // 应用翻译到页面
-        function applyTranslations() {
-            const elements = document.querySelectorAll('[data-i18n]');
+        function applyTranslations(root = document) {
+            const elements = root.querySelectorAll('[data-i18n]');
             elements.forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (translations[currentLang][key]) {
@@ -131,7 +133,7 @@
                 }
             });
 
-            const placeholderElements = document.querySelectorAll('[data-i18n-placeholder]');
+            const placeholderElements = root.querySelectorAll('[data-i18n-placeholder]');
             placeholderElements.forEach(el => {
                 const key = el.getAttribute('data-i18n-placeholder');
                 if (translations[currentLang][key]) {
@@ -139,6 +141,8 @@
                 }
             });
             
+            if (root !== document) return;
+
             // 特殊处理一些动态元素
             document.title = translations[currentLang]['title'];
             renderSubtitle();
@@ -233,11 +237,6 @@
             document.body.removeChild(textArea);
         }
         
-        // 页面加载完成后初始化语言
-        document.addEventListener('DOMContentLoaded', () => {
-            // Note: initLanguage() will be called in the main DOMContentLoaded handler
-            // to ensure proper coordination with other initialization code
-        });
     </script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans h-screen flex flex-col">
@@ -361,6 +360,8 @@
                 </div>
             </div>
         </aside>
+
+        <div id="detailsLoadError" role="alert" class="hidden fixed bottom-4 right-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" data-i18n="details_load_failed"></div>
 
         <!-- Right Column: Request Details -->
         <main class="w-2/3 overflow-y-auto p-4 md:p-8">
@@ -969,84 +970,180 @@
             // Initialize pagination and request list
             updateRequestList(currentPage);
 
-            // Handle request link clicks
+            // Keep the surrounding page mounted when switching requests.
+            let detailsController = null;
+            const detailsLoadError = document.getElementById('detailsLoadError');
+
+            function updateSelectedRequest(requestId) {
+                document.querySelectorAll('.request-link').forEach(link => {
+                    const selected = link.dataset.requestId === requestId;
+                    link.classList.toggle('bg-indigo-50', selected);
+                    link.classList.toggle('border-l-4', selected);
+                    link.classList.toggle('border-indigo-500', selected);
+                    const title = link.querySelector('.font-bold');
+                    if (title) {
+                        title.classList.toggle('text-indigo-700', selected);
+                        title.classList.toggle('text-gray-800', !selected);
+                    }
+                });
+            }
+
             function handleRequestClick(event) {
                 event.preventDefault();
                 const requestId = event.currentTarget.getAttribute('data-request-id');
-                if (requestId) {
-                    // Update URL without page reload
+                if (requestId !== null) {
                     const newUrl = new URL(window.location);
                     newUrl.searchParams.set('view_id', requestId);
-                    window.history.pushState({}, '', newUrl);
-                    
-                    // Update the display
-                    loadRequestDetails(requestId);
+                    loadRequestDetails(newUrl, { pushHistory: true });
                 }
             }
 
-            // Add click event listeners to existing request links
             document.querySelectorAll('.request-link').forEach(link => {
                 link.addEventListener('click', handleRequestClick);
             });
 
-            // Function to load request details via AJAX
-            function loadRequestDetails(requestId) {
-                const newUrl = new URL(window.location);
-                newUrl.pathname = '/';
-                newUrl.searchParams.set('view_id', requestId);
-                if (currentPathFilter) {
-                    newUrl.searchParams.set('path', currentPathFilter);
-                } else {
-                    newUrl.searchParams.delete('path');
+            window.addEventListener('popstate', () => {
+                const params = new URLSearchParams(window.location.search);
+                currentPathFilter = params.get('path') || '';
+                currentPage = Math.max(1, parseInt(params.get('page') || '1', 10) || 1);
+                pathSearchInput.value = currentPathFilter;
+                setPathSearchOpen(currentPathFilter !== '');
+                loadRequestDetails(new URL(window.location));
+                updateRequestList(currentPage);
+            });
+
+            async function loadRequestDetails(url, { pushHistory = false } = {}) {
+                if (detailsController) detailsController.abort();
+                const controller = new AbortController();
+                detailsController = controller;
+                const main = document.querySelector('main');
+                main.setAttribute('aria-busy', 'true');
+                detailsLoadError.classList.add('hidden');
+
+                try {
+                    const response = await fetch(url, { signal: controller.signal });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const html = await response.text();
+                    if (controller.signal.aborted) return;
+
+                    // Translate off-screen so fallback text is never painted.
+                    const parsed = new DOMParser().parseFromString(html, 'text/html');
+                    const nextMain = parsed.querySelector('main');
+                    if (!nextMain) throw new Error('Missing request details');
+                    applyTranslations(nextMain);
+                    main.replaceChildren(...nextMain.childNodes);
+                    main.scrollTop = 0;
+                    initRequestDetails();
+                    if (pushHistory) window.history.pushState({}, '', url);
+                    updateSelectedRequest(url.searchParams.get('view_id'));
+                } catch (error) {
+                    if (controller.signal.aborted) return;
+                    console.error('Error loading request details:', error);
+                    detailsLoadError.textContent = translations[currentLang]['details_load_failed'];
+                    detailsLoadError.classList.remove('hidden');
+                } finally {
+                    if (detailsController === controller) {
+                        main.removeAttribute('aria-busy');
+                        detailsController = null;
+                    }
                 }
-                if (currentPage > 1) {
-                    newUrl.searchParams.set('page', currentPage);
-                } else {
-                    newUrl.searchParams.delete('page');
-                }
-                window.location.href = newUrl.toString();
             }
 
-            // --- Collapsible sections logic ---
-            const sections = ['headers', 'query', 'body'];
+            function initRequestDetails() {
+                // --- Collapsible sections logic ---
+                const sections = ['headers', 'query', 'body'];
 
-            sections.forEach(section => {
-                const toggle = document.getElementById(section + '-toggle');
-                const content = document.getElementById(section + '-content');
-                const chevron = document.getElementById(section + '-chevron');
-                const storageKey = section + 'Collapsed';
+                sections.forEach(section => {
+                    const toggle = document.getElementById(section + '-toggle');
+                    const content = document.getElementById(section + '-content');
+                    const chevron = document.getElementById(section + '-chevron');
+                    const storageKey = section + 'Collapsed';
 
-                const setCollapsedState = (isCollapsed, isInitial) => {
-                    if(isCollapsed) {
-                        content.classList.add('hidden');
-                        chevron.classList.add('rotate-180');
-                    } else {
-                        content.classList.remove('hidden');
-                        chevron.classList.remove('rotate-180');
+                    const setCollapsedState = (isCollapsed, isInitial) => {
+                        if(isCollapsed) {
+                            content.classList.add('hidden');
+                            chevron.classList.add('rotate-180');
+                        } else {
+                            content.classList.remove('hidden');
+                            chevron.classList.remove('rotate-180');
+                        }
+                        if (!isInitial && section !== 'query') {
+                             localStorage.setItem(storageKey, isCollapsed);
+                        }
+                    };
+
+                    if (toggle) {
+                         toggle.addEventListener('click', () => {
+                            const isCollapsed = !content.classList.contains('hidden');
+                            setCollapsedState(isCollapsed, false);
+                        });
                     }
-                    if (!isInitial && section !== 'query') {
-                         localStorage.setItem(storageKey, isCollapsed);
+
+                    if (content) {
+                        let initiallyCollapsed;
+                        if (section === 'query') {
+                            initiallyCollapsed = content.dataset.hasContent === 'false';
+                        } else {
+                            const savedCollapsed = localStorage.getItem(storageKey);
+                            initiallyCollapsed = savedCollapsed === 'true';
+                        }
+                        setCollapsedState(initiallyCollapsed, true);
                     }
-                };
-                
-                if (toggle) {
-                     toggle.addEventListener('click', () => {
-                        const isCollapsed = !content.classList.contains('hidden');
-                        setCollapsedState(isCollapsed, false);
+                });
+
+                const copyBodyBtn = document.getElementById('copy-body-btn');
+                if (copyBodyBtn) {
+                    copyBodyBtn.addEventListener('click', async () => {
+                        const bodyText = document.getElementById('body-text');
+                        if (bodyText) {
+                            try {
+                                // Get the text content without HTML tags
+                                const textToCopy = bodyText.textContent || bodyText.innerText;
+                                await copyText(textToCopy);
+
+                                // Visual feedback
+                                const originalContent = copyBodyBtn.innerHTML;
+                                copyBodyBtn.innerHTML = `
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span data-i18n="copied">${translations[currentLang]['copied']}</span>
+                                `;
+                                copyBodyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                                copyBodyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+
+                                // Reset after 2 seconds
+                                setTimeout(() => {
+                                    copyBodyBtn.innerHTML = originalContent;
+                                    copyBodyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                                    copyBodyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                                }, 2000);
+
+                            } catch (err) {
+                                console.error('Failed to copy text: ', err);
+                                // Show error feedback
+                                const originalContent = copyBodyBtn.innerHTML;
+                                copyBodyBtn.innerHTML = `
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    <span>${translations[currentLang]['copy_failed']}</span>
+                                `;
+                                copyBodyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                                copyBodyBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+
+                                setTimeout(() => {
+                                    copyBodyBtn.innerHTML = originalContent;
+                                    copyBodyBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                                    copyBodyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                                }, 2000);
+                            }
+                        }
                     });
                 }
-               
-                if (content) {
-                    let initiallyCollapsed;
-                    if (section === 'query') {
-                        initiallyCollapsed = content.dataset.hasContent === 'false';
-                    } else {
-                        const savedCollapsed = localStorage.getItem(storageKey);
-                        initiallyCollapsed = savedCollapsed === 'true';
-                    }
-                    setCollapsedState(initiallyCollapsed, true);
-                }
-            });
+            }
+
+            initRequestDetails();
 
             // --- Copy button functionality ---
             const copySubtitleBtn = document.getElementById('copy-subtitle-btn');
@@ -1100,56 +1197,6 @@
                 });
             }
 
-            const copyBodyBtn = document.getElementById('copy-body-btn');
-            if (copyBodyBtn) {
-                copyBodyBtn.addEventListener('click', async () => {
-                    const bodyText = document.getElementById('body-text');
-                    if (bodyText) {
-                        try {
-                            // Get the text content without HTML tags
-                            const textToCopy = bodyText.textContent || bodyText.innerText;
-                            await copyText(textToCopy);
-                            
-                            // Visual feedback
-                            const originalContent = copyBodyBtn.innerHTML;
-                            copyBodyBtn.innerHTML = `
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                                <span data-i18n="copied">${translations[currentLang]['copied']}</span>
-                            `;
-                            copyBodyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                            copyBodyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-                            
-                            // Reset after 2 seconds
-                            setTimeout(() => {
-                                copyBodyBtn.innerHTML = originalContent;
-                                copyBodyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
-                                copyBodyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                            }, 2000);
-                            
-                        } catch (err) {
-                            console.error('Failed to copy text: ', err);
-                            // Show error feedback
-                            const originalContent = copyBodyBtn.innerHTML;
-                            copyBodyBtn.innerHTML = `
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                <span>${translations[currentLang]['copy_failed']}</span>
-                            `;
-                            copyBodyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                            copyBodyBtn.classList.add('bg-red-600', 'hover:bg-red-700');
-                            
-                            setTimeout(() => {
-                                copyBodyBtn.innerHTML = originalContent;
-                                copyBodyBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
-                                copyBodyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                            }, 2000);
-                        }
-                    }
-                });
-            }
         });
     </script>
 </body>
